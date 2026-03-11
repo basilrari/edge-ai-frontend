@@ -7,8 +7,6 @@ import {
   Activity,
   Cpu,
   MemoryStick,
-  ChevronDown,
-  ChevronUp,
   Copy,
 } from "lucide-react";
 
@@ -17,8 +15,17 @@ interface Props {
   latest: ApiResponse | null;
 }
 
+interface LlmSummary {
+  modelName?: string;
+  finishReason?: string;
+  totalTokens?: number;
+  promptTokens?: number;
+  completionTokens?: number;
+  predictedMs?: number;
+  perTokenMs?: number;
+}
+
 export const StatusCard: React.FC<Props> = ({ status, latest }) => {
-  const [expanded, setExpanded] = useState(false);
   const [copied, setCopied] = useState(false);
 
   const state = latest?.state ?? status?.state ?? "UNKNOWN";
@@ -33,11 +40,25 @@ export const StatusCard: React.FC<Props> = ({ status, latest }) => {
 
   const rawText = latest?.llm_response ?? "";
 
-  const formatted = useMemo(() => {
+  const llmSummary: LlmSummary | null = useMemo(() => {
     if (!rawText) return null;
     try {
-      const parsed = JSON.parse(rawText);
-      return JSON.stringify(parsed, null, 2);
+      const parsed = JSON.parse(rawText) as any;
+      const usage = parsed.usage ?? {};
+      const timings = parsed.timings ?? {};
+      const choice = Array.isArray(parsed.choices) && parsed.choices[0]
+        ? parsed.choices[0]
+        : undefined;
+
+      return {
+        modelName: parsed.model ?? parsed.id,
+        finishReason: choice?.finish_reason,
+        totalTokens: usage.total_tokens,
+        promptTokens: usage.prompt_tokens,
+        completionTokens: usage.completion_tokens,
+        predictedMs: timings.predicted_ms,
+        perTokenMs: timings.predicted_per_token_ms,
+      };
     } catch {
       return null;
     }
@@ -92,7 +113,7 @@ export const StatusCard: React.FC<Props> = ({ status, latest }) => {
           label="Override"
           value={overrideActive ? "ACTIVE" : "inactive"}
         />
-        <Metric label="Latency" value={`${latency} ms`} />
+        <Metric label="Gateway latency" value={`${latency} ms`} />
         <Metric label="LLM latency" value={`${llmLatency} ms`} />
         {memoryMb !== null && (
           <Metric
@@ -103,7 +124,7 @@ export const StatusCard: React.FC<Props> = ({ status, latest }) => {
         )}
       </motion.div>
 
-      <div className="space-y-2">
+      <div className="space-y-3">
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-medium text-slate-200">
             Last tool decision
@@ -120,10 +141,62 @@ export const StatusCard: React.FC<Props> = ({ status, latest }) => {
         </div>
 
         {latest ? (
-          <div className="mt-2 space-y-2">
-            <div className="flex items-center justify-between text-xs text-slate-400">
-              <span>Raw & formatted LLM response</span>
-              <div className="flex items-center gap-2">
+          <div className="mt-1 space-y-3">
+            {llmSummary ? (
+              <div className="rounded-xl border border-slate-700/70 bg-slate-900/70 px-3 py-2 text-[11px] leading-relaxed text-slate-200">
+                <div className="text-[11px] font-semibold text-slate-300 mb-1">
+                  LLM run summary
+                </div>
+                <ul className="space-y-1 list-disc list-inside">
+                  {llmSummary.modelName && (
+                    <li>
+                      <span className="font-semibold">Model</span>: {llmSummary.modelName}
+                    </li>
+                  )}
+                  {llmSummary.finishReason && (
+                    <li>
+                      <span className="font-semibold">Stopped because</span>: "
+                      {llmSummary.finishReason}"
+                    </li>
+                  )}
+                  {typeof llmSummary.totalTokens === "number" && (
+                    <li>
+                      <span className="font-semibold">Tokens</span>: total {llmSummary.totalTokens}
+                      {typeof llmSummary.promptTokens === "number" &&
+                        typeof llmSummary.completionTokens === "number" && (
+                          <>
+                            {" "}(prompt {llmSummary.promptTokens}, completion {llmSummary.completionTokens})
+                          </>
+                        )}
+                    </li>
+                  )}
+                  {typeof llmSummary.predictedMs === "number" && (
+                    <li>
+                      <span className="font-semibold">Model compute time</span>: ~
+                      {llmSummary.predictedMs.toFixed(1)} ms
+                      {typeof llmSummary.perTokenMs === "number" && (
+                        <>
+                          {" "}(
+                          {llmSummary.perTokenMs.toFixed(1)} ms / token)
+                        </>
+                      )}
+                    </li>
+                  )}
+                  <li>
+                    <span className="font-semibold">End-to-end latency</span>: {latency} ms
+                    {llmLatency > 0 && ` (LLM portion ~${llmLatency} ms)`}
+                  </li>
+                </ul>
+              </div>
+            ) : (
+              <p className="text-[11px] text-slate-400">
+                LLM metrics not available for this response.
+              </p>
+            )}
+
+            <div className="space-y-1">
+              <div className="flex items-center justify-between text-xs text-slate-400">
+                <span>Raw LLM payload</span>
                 <button
                   type="button"
                   className="outline"
@@ -132,47 +205,13 @@ export const StatusCard: React.FC<Props> = ({ status, latest }) => {
                   <Copy className="h-3 w-3" />
                   {copied ? "Copied" : "Copy"}
                 </button>
-                <button
-                  type="button"
-                  className="outline"
-                  onClick={() => setExpanded((v) => !v)}
-                >
-                  {expanded ? (
-                    <>
-                      Collapse <ChevronUp className="h-3 w-3" />
-                    </>
-                  ) : (
-                    <>
-                      Expand <ChevronDown className="h-3 w-3" />
-                    </>
-                  )}
-                </button>
+              </div>
+              <div className="max-h-40 overflow-auto rounded-xl border border-slate-700/70 bg-slate-950/80 p-2">
+                <code className="llm-response text-[11px] md:text-[11px]">
+                  {rawText || "(empty)"}
+                </code>
               </div>
             </div>
-
-            <motion.div
-              initial={false}
-              animate={{ height: expanded ? "auto" : 140, opacity: 1 }}
-              className="relative overflow-hidden rounded-xl border border-slate-700/70 bg-slate-950/80 p-2 space-y-2"
-            >
-              <div className="space-y-1">
-                <div className="text-[11px] font-semibold text-slate-300">
-                  Raw
-                </div>
-                <code className="llm-response">{rawText || "(empty)"}</code>
-              </div>
-              {formatted && (
-                <div className="space-y-1">
-                  <div className="text-[11px] font-semibold text-slate-300">
-                    Formatted JSON
-                  </div>
-                  <code className="llm-response">{formatted}</code>
-                </div>
-              )}
-              {!expanded && (
-                <div className="pointer-events-none absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-slate-950/95 to-transparent" />
-              )}
-            </motion.div>
           </div>
         ) : (
           <p className="text-xs text-slate-500">No inferences yet.</p>

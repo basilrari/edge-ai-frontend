@@ -28,7 +28,7 @@ export const HistoryTable: React.FC<Props> = ({ entries }) => {
         </div>
       </div>
       <div className="overflow-x-auto rounded-xl border border-slate-700/70 bg-slate-950/60">
-        <table className="min-w-full text-left text-[11px] md:text-xs">
+        <table className="min-w-full text-left text-[11px] md:text-xs whitespace-nowrap">
           <thead className="border-b border-slate-700 bg-slate-900/60 text-slate-400">
             <tr>
               <th className="px-3 py-2">Time</th>
@@ -74,7 +74,7 @@ export const HistoryTable: React.FC<Props> = ({ entries }) => {
                   <td className="px-3 py-2">{entry.model ?? "none"}</td>
                   <td className="px-3 py-2">{entry.category ?? ""}</td>
                   <td className="px-3 py-2">{entry.tool_name ?? ""}</td>
-                  <td className="px-3 py-2 max-w-[160px] truncate">
+                  <td className="px-3 py-2 max-w-[220px] truncate">
                     {entry.action_taken}
                   </td>
                   <td className="px-3 py-2 font-mono">{entry.latency_ms} ms</td>
@@ -88,3 +88,4 @@ export const HistoryTable: React.FC<Props> = ({ entries }) => {
     </div>
   );
 };
+
