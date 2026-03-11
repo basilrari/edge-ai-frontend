@@ -23,6 +23,8 @@ interface LlmSummary {
   completionTokens?: number;
   predictedMs?: number;
   perTokenMs?: number;
+  timeToFirstMs?: number;
+  tokensPerSecond?: number;
 }
 
 export const StatusCard: React.FC<Props> = ({ status, latest }) => {
@@ -46,9 +48,23 @@ export const StatusCard: React.FC<Props> = ({ status, latest }) => {
       const parsed = JSON.parse(rawText) as any;
       const usage = parsed.usage ?? {};
       const timings = parsed.timings ?? {};
-      const choice = Array.isArray(parsed.choices) && parsed.choices[0]
-        ? parsed.choices[0]
-        : undefined;
+      const choice =
+        Array.isArray(parsed.choices) && parsed.choices[0]
+          ? parsed.choices[0]
+          : undefined;
+
+      const timeToFirstMs =
+        timings.time_to_first_token_ms ??
+        timings.timeToFirstTokenMs ??
+        timings.first_token_ms;
+
+      const predictedMs: number | undefined = timings.predicted_ms;
+      const perTokenMs: number | undefined = timings.predicted_per_token_ms;
+
+      let tokensPerSecond: number | undefined = timings.predicted_per_second;
+      if (tokensPerSecond == null && typeof perTokenMs === "number" && perTokenMs > 0) {
+        tokensPerSecond = 1000 / perTokenMs;
+      }
 
       return {
         modelName: parsed.model ?? parsed.id,
@@ -56,8 +72,10 @@ export const StatusCard: React.FC<Props> = ({ status, latest }) => {
         totalTokens: usage.total_tokens,
         promptTokens: usage.prompt_tokens,
         completionTokens: usage.completion_tokens,
-        predictedMs: timings.predicted_ms,
-        perTokenMs: timings.predicted_per_token_ms,
+        predictedMs,
+        perTokenMs,
+        timeToFirstMs,
+        tokensPerSecond,
       };
     } catch {
       return null;
@@ -172,7 +190,7 @@ export const StatusCard: React.FC<Props> = ({ status, latest }) => {
                       {typeof llmSummary.promptTokens === "number" &&
                         typeof llmSummary.completionTokens === "number" && (
                           <>
-                            {" "}(prompt {llmSummary.promptTokens}, completion {llmSummary.completionTokens})
+                            {" "}(input {llmSummary.promptTokens}, output {llmSummary.completionTokens})
                           </>
                         )}
                     </li>
@@ -187,6 +205,18 @@ export const StatusCard: React.FC<Props> = ({ status, latest }) => {
                           {llmSummary.perTokenMs.toFixed(1)} ms / token)
                         </>
                       )}
+                    </li>
+                  )}
+                  {typeof llmSummary.timeToFirstMs === "number" && (
+                    <li>
+                      <span className="font-semibold">Time to first token</span>: ~
+                      {llmSummary.timeToFirstMs.toFixed(1)} ms
+                    </li>
+                  )}
+                  {typeof llmSummary.tokensPerSecond === "number" && (
+                    <li>
+                      <span className="font-semibold">Throughput</span>: ~
+                      {llmSummary.tokensPerSecond.toFixed(1)} tokens / second
                     </li>
                   )}
                   <li>
