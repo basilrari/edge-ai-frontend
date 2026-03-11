@@ -6,6 +6,7 @@ import { HistoryTable } from "../components/HistoryTable";
 import { PromptForm } from "../components/PromptForm";
 import { QuickActions } from "../components/QuickActions";
 import type { ApiResponse, StatusResponse } from "../components/types";
+import { ToolsPanel } from "../components/ToolsPanel";
 import { motion } from "framer-motion";
 import { Activity, SatelliteDish } from "lucide-react";
 
@@ -150,16 +151,28 @@ export default function Page(): JSX.Element {
             >
               <HistoryTable entries={history} />
             </motion.div>
+
+            {/* Tools list for mobile (stacked under history) */}
+            <div className="md:hidden">
+              <ToolsPanel />
+            </div>
           </div>
 
-          <motion.div
-            className="card"
-            initial={{ opacity: 0, x: 18 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.4, delay: 0.1 }}
-          >
-            <StatusCard status={status} latest={latest} />
-          </motion.div>
+          <div className="space-y-4">
+            <motion.div
+              className="card"
+              initial={{ opacity: 0, x: 18 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.4, delay: 0.1 }}
+            >
+              <StatusCard status={status} latest={latest} />
+            </motion.div>
+
+            {/* Tools list on desktop/tablet next to status */}
+            <div className="hidden md:block">
+              <ToolsPanel />
+            </div>
+          </div>
         </div>
       </div>
     </main>
