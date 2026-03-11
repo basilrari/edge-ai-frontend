@@ -24,7 +24,7 @@ export default function Page(): JSX.Element {
   const [error, setError] = useState<string | null>(null);
   const [promptValue, setPromptValue] = useState("");
 
-  // Poll /status every 2s
+  // Poll /status every 10s
   useEffect(() => {
     let active = true;
 
@@ -44,7 +44,7 @@ export default function Page(): JSX.Element {
     };
 
     fetchStatus();
-    const id = setInterval(fetchStatus, 2000);
+    const id = setInterval(fetchStatus, 10000);
     return () => {
       active = false;
       clearInterval(id);

@@ -75,6 +75,14 @@ export const StatusCard: React.FC<Props> = ({ status, latest }) => {
     }
   };
 
+  const humanFinishReason = useMemo(() => {
+    if (!llmSummary?.finishReason) return undefined;
+    if (llmSummary.finishReason === "stop") return "Completed normally";
+    if (llmSummary.finishReason === "length")
+      return "Stopped early due to token limit";
+    return llmSummary.finishReason;
+  }, [llmSummary?.finishReason]);
+
   return (
     <motion.div
       className="space-y-4"
@@ -153,10 +161,9 @@ export const StatusCard: React.FC<Props> = ({ status, latest }) => {
                       <span className="font-semibold">Model</span>: {llmSummary.modelName}
                     </li>
                   )}
-                  {llmSummary.finishReason && (
+                  {humanFinishReason && (
                     <li>
-                      <span className="font-semibold">Stopped because</span>: "
-                      {llmSummary.finishReason}"
+                      <span className="font-semibold">Completion</span>: {humanFinishReason}
                     </li>
                   )}
                   {typeof llmSummary.totalTokens === "number" && (
