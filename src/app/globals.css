@@ -1,0 +1,35 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+body {
+  @apply bg-background text-foreground min-h-screen;
+}
+
+.card {
+  @apply bg-card border border-cardBorder rounded-xl shadow-lg p-4;
+}
+
+.badge {
+  @apply inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-accentMuted text-accent;
+}
+
+button.primary {
+  @apply inline-flex items-center justify-center rounded-md bg-accent px-4 py-2 text-sm font-medium text-black hover:bg-green-400 disabled:opacity-50 disabled:cursor-not-allowed;
+}
+
+button.outline {
+  @apply inline-flex items-center justify-center rounded-md border border-cardBorder px-3 py-1.5 text-sm font-medium text-foreground hover:bg-slate-800;
+}
+
+textarea.prompt-input {
+  @apply w-full rounded-md border border-cardBorder bg-slate-900 px-3 py-2 text-sm text-foreground placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-accent;
+}
+
+code.llm-response {
+  @apply block whitespace-pre-wrap rounded-md bg-slate-950 p-3 text-xs font-mono text-slate-100 overflow-auto max-h-96;
+}
