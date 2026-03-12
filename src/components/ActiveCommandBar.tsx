@@ -43,9 +43,12 @@ interface Props {
   latest: ApiResponse | null;
 }
 
-/** When category is "none", human-readable reason for no tool (e.g. ambiguous_request) */
+/** When category is "none", human-readable reason for no tool */
 const NONE_REASON_LABELS: Record<string, string> = {
   ambiguous_request: "Ambiguous request",
+  greeting_only: "Greeting only",
+  informational_request: "Informational request",
+  unsafe_or_invalid: "Unsafe or invalid",
 };
 
 function noneReasonDisplay(name: string | null): string {
