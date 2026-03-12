@@ -150,26 +150,26 @@ export const StatusCard: React.FC<Props> = ({ status, latest }) => {
         )}
       </motion.div>
 
-      <div className="space-y-3">
-        <div className="flex items-center justify-between">
+      <div className="min-w-0 space-y-3">
+        <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <h3 className="text-sm font-medium text-slate-200">
             Last tool decision
           </h3>
           {latest && (
-            <div className="flex flex-wrap items-center gap-2 text-[11px]">
-              <span className="badge">
+            <div className="flex min-w-0 flex-wrap items-center gap-2 text-[11px]">
+              <span className="badge shrink-0">
                 category: {latest.category ?? "n/a"}
               </span>
-              <span className="badge">tool: {latest.tool_name ?? "n/a"}</span>
-              <span className="badge">action: {latest.action_taken}</span>
+              <span className="badge shrink-0">tool: {latest.tool_name ?? "n/a"}</span>
+              <span className="badge max-w-full truncate" title={String(latest.action_taken)}>action: {latest.action_taken}</span>
             </div>
           )}
         </div>
 
         {latest ? (
-          <div className="mt-1 space-y-3">
+          <div className="mt-1 flex min-w-0 max-h-[320px] flex-col gap-3 overflow-y-auto">
             {llmSummary ? (
-              <div className="rounded-xl border border-slate-700/70 bg-slate-900/70 px-3 py-2 text-[11px] leading-relaxed text-slate-200">
+              <div className="min-w-0 flex-shrink-0 rounded-xl border border-slate-700/70 bg-slate-900/70 px-3 py-2 text-[11px] leading-relaxed text-slate-200 overflow-hidden">
                 <div className="text-[11px] font-semibold text-slate-300 mb-1">
                   LLM run summary
                 </div>
@@ -231,19 +231,19 @@ export const StatusCard: React.FC<Props> = ({ status, latest }) => {
               </p>
             )}
 
-            <div className="space-y-1">
-              <div className="flex items-center justify-between text-xs text-slate-400">
-                <span>Raw LLM payload</span>
+            <div className="min-w-0 flex-shrink-0 space-y-1">
+              <div className="flex min-w-0 items-center justify-between gap-2 text-xs text-slate-400">
+                <span className="truncate">Raw LLM payload</span>
                 <button
                   type="button"
-                  className="outline"
+                  className="outline shrink-0"
                   onClick={handleCopy}
                 >
                   <Copy className="h-3 w-3" />
                   {copied ? "Copied" : "Copy"}
                 </button>
               </div>
-              <div className="max-h-40 overflow-auto rounded-xl border border-slate-700/70 bg-slate-950/80 p-2">
+              <div className="max-h-40 min-w-0 overflow-auto rounded-xl border border-slate-700/70 bg-slate-950/80 p-2">
                 <code className="llm-response text-[11px] md:text-[11px]">
                   {rawText || "(empty)"}
                 </code>

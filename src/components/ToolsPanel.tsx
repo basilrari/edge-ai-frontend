@@ -5,13 +5,13 @@ import { BadgeCheck, ScanEye, Brain, Share2, Waves, Info, Waypoints } from "luci
 
 export const ToolsPanel: React.FC = () => {
   return (
-    <div className="card space-y-3 text-xs md:text-sm">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <div className="flex h-7 w-7 items-center justify-center rounded-xl bg-cyan-500/20 text-cyan-300">
+    <div className="card min-w-0 space-y-3 text-xs md:text-sm">
+      <div className="flex min-w-0 items-center justify-between">
+        <div className="flex min-w-0 items-start gap-2">
+          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl bg-cyan-500/20 text-cyan-300">
             <Info className="h-3.5 w-3.5" />
           </div>
-          <div>
+          <div className="min-w-0">
             <h2 className="text-sm font-semibold tracking-tight">
               Available tools
             </h2>

@@ -43,24 +43,24 @@ const QUICK_PROMPTS: {
 
 export const QuickActions: React.FC<Props> = ({ onSelect, disabled }) => {
   return (
-    <div className="space-y-2">
-      <div className="flex items-center justify-between text-xs text-slate-400">
-        <span>Quick model actions (tools)</span>
+    <div className="min-w-0 space-y-2">
+      <div className="flex min-w-0 items-center justify-between text-xs text-slate-400">
+        <span className="truncate">Quick model actions (tools)</span>
       </div>
       {/* Mobile: vertical list of big buttons; Desktop: 2-column grid */}
-      <div className="grid gap-2 sm:grid-cols-2 md:grid-cols-2">
+      <div className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2">
         {QUICK_PROMPTS.map((q) => (
           <motion.button
             key={q.label}
             type="button"
-            className="outline w-full justify-start py-2"
+            className="outline w-full min-w-0 justify-start py-2 text-left"
             disabled={disabled}
             whileHover={{ scale: disabled ? 1 : 1.02 }}
             whileTap={{ scale: disabled ? 1 : 0.98 }}
             onClick={() => onSelect(q.prompt)}
           >
-            <q.icon className="mr-2 h-4 w-4 text-cyan-300" />
-            <span className="text-left text-[12px] md:text-xs leading-snug">
+            <q.icon className="mr-2 h-4 w-4 shrink-0 text-cyan-300" />
+            <span className="min-w-0 break-words text-left text-[12px] leading-snug md:text-xs">
               {q.label}
             </span>
           </motion.button>

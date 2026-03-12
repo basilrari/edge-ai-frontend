@@ -33,7 +33,7 @@ export const PromptForm: React.FC<Props> = ({
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.35 }}
     >
-      <div className="flex items-center justify-between">
+      <div className="flex min-w-0 flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
         <label className="text-sm font-medium text-slate-100">
           Command prompt
         </label>
@@ -42,34 +42,34 @@ export const PromptForm: React.FC<Props> = ({
         </span>
       </div>
       <textarea
-        className="prompt-input"
+        className="prompt-input min-h-[100px] max-h-[200px] resize-y"
         rows={4}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder="e.g. sweep the flooded area ahead, prioritize human detection and circle around any detected clusters"
       />
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <motion.button
           whileHover={{ scale: loading ? 1 : 1.02 }}
           whileTap={{ scale: loading ? 1 : 0.98 }}
           type="submit"
-          className="primary w-full sm:w-auto justify-center"
+          className="primary h-10 min-w-[140px] w-full justify-center sm:w-auto"
           disabled={loading || !value.trim()}
         >
           {loading ? (
             <>
-              <Loader2 className="h-4 w-4 animate-spin" />
-              Sending...
+              <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
+              <span>Sending...</span>
             </>
           ) : (
             <>
-              <SendHorizonal className="h-4 w-4" />
-              Send Prompt
+              <SendHorizonal className="h-4 w-4 shrink-0" />
+              <span>Send Prompt</span>
             </>
           )}
         </motion.button>
         {error && (
-          <p className="text-xs text-danger max-w-sm">Error: {error}</p>
+          <p className="min-w-0 truncate text-xs text-danger sm:max-w-sm">Error: {error}</p>
         )}
       </div>
     </motion.form>

@@ -20,18 +20,18 @@ const rowVariants = {
 
 export const HistoryTable: React.FC<Props> = ({ entries }) => {
   return (
-    <div className="space-y-3">
-      <div className="mb-1 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Clock3 className="h-4 w-4 text-slate-400" />
-          <h2 className="text-sm font-semibold">History (last 10 inferences)</h2>
+    <div className="min-w-0 space-y-3">
+      <div className="mb-1 flex min-w-0 items-center justify-between">
+        <div className="flex min-w-0 items-center gap-2">
+          <Clock3 className="h-4 w-4 shrink-0 text-slate-400" />
+          <h2 className="truncate text-sm font-semibold">History (last 10 inferences)</h2>
         </div>
       </div>
 
       {/* Mobile: stacked cards for readability */}
-      <div className="space-y-2 md:hidden">
+      <div className="min-w-0 space-y-2 md:hidden">
         {entries.length === 0 ? (
-          <div className="rounded-xl border border-slate-700/70 bg-slate-950/70 px-3 py-3 text-xs text-slate-500">
+          <div className="min-w-0 rounded-xl border border-slate-700/70 bg-slate-950/70 px-3 py-3 text-xs text-slate-500">
             No inferences yet.
           </div>
         ) : (
@@ -41,7 +41,7 @@ export const HistoryTable: React.FC<Props> = ({ entries }) => {
               variants={rowVariants}
               initial="hidden"
               animate="show"
-              className={`rounded-xl border border-slate-700/70 bg-slate-950/80 px-3 py-2 text-[11px] ${
+              className={`min-w-0 rounded-xl border border-slate-700/70 bg-slate-950/80 px-3 py-2 text-[11px] ${
                 idx % 2 === 0 ? "" : "bg-slate-950/60"
               }`}
             >
