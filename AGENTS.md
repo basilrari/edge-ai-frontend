@@ -48,7 +48,7 @@ History entries are `ApiResponse & { timestamp: string }` (ISO string), kept in 
 
 1. **Status**: `page.tsx` polls `GET ${GATEWAY_URL}/status` every 10s and passes `status: StatusResponse | null` to `StatusCard`.
 2. **Infer**: User submits via `PromptForm` or `QuickActions` → `page.tsx` calls `POST ${GATEWAY_URL}/infer` with `{"Infer": {"prompt": "..."}}` → response stored as `latest`, and prepended to `history` (max 10).
-3. **Active command**: `ActiveCommandBar` receives `latest: ApiResponse | null` and derives drone vs model label from `tool_name` using fixed maps (`MODEL_TOOL_LABELS`, `DRONE_TOOL_LABELS` in `ActiveCommandBar.tsx`).
+3. **Active command**: `ActiveCommandBar` receives `latest: ApiResponse | null`. When `category === "none"` (e.g. ambiguous request), both Drone and Model slots show inactive/default labels and a line “No tool selected — &lt;reason&gt;” (reason from `tool_name`, e.g. “Ambiguous request”). Otherwise it derives drone vs model from `tool_name` using `MODEL_TOOL_LABELS` and `DRONE_TOOL_LABELS`.
 4. **StatusCard** receives both `status` and `latest`; it shows gateway metrics and “last tool decision” (category, tool_name, action_taken) and parses `llm_response` as JSON for an optional LLM run summary (tokens, timings, etc.).
 
 ---
@@ -68,6 +68,8 @@ All requests are `fetch()` from the client; no Next API routes. CORS is enabled 
 - **Drone tools** (not yet wired): `move_forward`, `hover`, `return_to_home`, `land_immediately`, `circle_search`. Listed in `ToolsPanel`; labels in `ActiveCommandBar`.
 
 Adding a new tool: add label in `ActiveCommandBar` (and optionally a quick prompt in `QuickActions` and a row in `ToolsPanel`), and ensure the gateway returns that `tool_name` from `/infer`.
+
+- **Category "none"**: When the gateway returns `category: "none"` (e.g. `tool_name: "ambiguous_request"`), the UI treats it as no tool selected; gateway state may be IDLE. Add human-readable labels in `ActiveCommandBar`’s `NONE_REASON_LABELS` if needed.
 
 ---
 

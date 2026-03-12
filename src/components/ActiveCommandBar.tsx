@@ -43,9 +43,31 @@ interface Props {
   latest: ApiResponse | null;
 }
 
+/** When category is "none", human-readable reason for no tool (e.g. ambiguous_request) */
+const NONE_REASON_LABELS: Record<string, string> = {
+  ambiguous_request: "Ambiguous request",
+};
+
+function noneReasonDisplay(name: string | null): string {
+  if (!name) return "No tool selected";
+  return NONE_REASON_LABELS[name] ?? name.replace(/_/g, " ");
+}
+
 export const ActiveCommandBar: React.FC<Props> = ({ latest }) => {
-  const { droneLabel, modelLabel, droneActive, modelActive } = useMemo(() => {
+  const { droneLabel, modelLabel, droneActive, modelActive, noneReason } = useMemo(() => {
+    const category = latest?.category ?? null;
     const tool = latest?.tool_name ?? null;
+
+    if (category === "none") {
+      return {
+        droneLabel: "Autonomous mode",
+        modelLabel: "Normal sequential flow",
+        droneActive: false,
+        modelActive: false,
+        noneReason: noneReasonDisplay(tool),
+      };
+    }
+
     const isDrone = isDroneTool(tool);
     const hasModelTool = tool != null && !isDrone;
     return {
@@ -53,17 +75,24 @@ export const ActiveCommandBar: React.FC<Props> = ({ latest }) => {
       modelLabel: hasModelTool ? modelDisplay(tool) : "Normal sequential flow",
       droneActive: isDrone,
       modelActive: hasModelTool,
+      noneReason: null as string | null,
     };
-  }, [latest?.tool_name]);
+  }, [latest?.category, latest?.tool_name]);
 
   return (
     <motion.section
-      className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2"
+      className="min-w-0 space-y-3"
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
     >
-      <div className="flex min-w-0 flex-col gap-1.5 rounded-xl border border-cyan-500/25 bg-slate-900/50 px-4 py-3 backdrop-blur-sm">
+      {noneReason != null && (
+        <p className="text-xs text-slate-400">
+          No tool selected — {noneReason}
+        </p>
+      )}
+      <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
+        <div className="flex min-w-0 flex-col gap-1.5 rounded-xl border border-cyan-500/25 bg-slate-900/50 px-4 py-3 backdrop-blur-sm">
         <div className="flex items-center gap-2 text-[11px] font-medium uppercase tracking-wider text-slate-400">
           <Plane className="h-3.5 w-3.5 text-cyan-400" />
           <span>Drone</span>
@@ -74,18 +103,19 @@ export const ActiveCommandBar: React.FC<Props> = ({ latest }) => {
         >
           {droneLabel}
         </p>
-      </div>
-      <div className="flex min-w-0 flex-col gap-1.5 rounded-xl border border-cyan-500/25 bg-slate-900/50 px-4 py-3 backdrop-blur-sm">
-        <div className="flex items-center gap-2 text-[11px] font-medium uppercase tracking-wider text-slate-400">
-          <Cpu className="h-3.5 w-3.5 text-emerald-400" />
-          <span>Model</span>
         </div>
-        <p
-          className={`min-w-0 truncate text-sm font-medium sm:text-base ${modelActive ? "text-emerald-300" : "text-slate-300"}`}
-          title={modelLabel}
-        >
-          {modelLabel}
-        </p>
+        <div className="flex min-w-0 flex-col gap-1.5 rounded-xl border border-cyan-500/25 bg-slate-900/50 px-4 py-3 backdrop-blur-sm">
+          <div className="flex items-center gap-2 text-[11px] font-medium uppercase tracking-wider text-slate-400">
+            <Cpu className="h-3.5 w-3.5 text-emerald-400" />
+            <span>Model</span>
+          </div>
+          <p
+            className={`min-w-0 truncate text-sm font-medium sm:text-base ${modelActive ? "text-emerald-300" : "text-slate-300"}`}
+            title={modelLabel}
+          >
+            {modelLabel}
+          </p>
+        </div>
       </div>
     </motion.section>
   );
