@@ -22,7 +22,7 @@ frontend/src/
 │   └── globals.css  # Tailwind + custom classes (see Styling below)
 └── components/
     ├── types.ts              # ApiResponse, StatusResponse (matches gateway JSON)
-    ├── ActiveCommandBar.tsx   # Shows current drone + model command from latest infer
+    ├── ActiveCommandBar.tsx   # Drone + model cards from last applied only; proposal + Accept/Reject from latest
     ├── StatusCard.tsx         # Gateway status, metrics, last tool decision, LLM summary
     ├── HistoryTable.tsx       # Last 10 inferences (HistoryEntry = ApiResponse + timestamp)
     ├── PromptForm.tsx        # Textarea + Send; calls onSend(prompt)
@@ -37,26 +37,28 @@ frontend/src/
 
 ## Types (`components/types.ts`)
 
-- **ApiResponse**: Matches POST `/infer` response — `state`, `model`, `override_active`, `category`, `tool_name`, `llm_response`, `action_taken`, `latency_ms`, `llm_latency_ms`.
-- **StatusResponse**: Matches GET `/status` — `state`, `model`, `override_active`, `latency_ms`, `llm_latency_ms`, `memory_estimate_mb`. (Frontend does not use `active_command` from status; it derives “current command” from the latest infer response in `ActiveCommandBar`.)
+- **ApiResponse**: Matches POST `/infer` response — `state`, `model`, `override_active`, `category`, `tool_name`, `pending_approval`, `llm_response`, `action_taken`, `latency_ms`, `llm_latency_ms`.
+- **StatusResponse**: Matches GET `/status` — `state`, `model`, `override_active`, `latency_ms`, `llm_latency_ms`, `memory_estimate_mb`. (Frontend does not use `active_command` from status; it derives “current command” from the last **accepted** response in `ActiveCommandBar`, not from status.)
 
-History entries are `ApiResponse & { timestamp: string }` (ISO string), kept in state in `page.tsx` and capped at 10.
+History entries are `ApiResponse & { timestamp: string }` (ISO string), kept in state in `page.tsx` and capped at 10. Only one entry per outcome: added when Infer returns without `pending_approval`, or when the user Accepts (ApplyTool response); proposals are not added to avoid double entries.
 
 ---
 
 ## Data flow
 
 1. **Status**: `page.tsx` polls `GET ${GATEWAY_URL}/status` every 10s and passes `status: StatusResponse | null` to `StatusCard`.
-2. **Infer**: User submits via `PromptForm` or `QuickActions` → `page.tsx` calls `POST ${GATEWAY_URL}/infer` with `{"Infer": {"prompt": "..."}}` → response stored as `latest`, and prepended to `history` (max 10).
-3. **Active command**: `ActiveCommandBar` receives `latest: ApiResponse | null`. When `category === "none"` (e.g. ambiguous request), both Drone and Model slots show inactive/default labels and a line “No tool selected — &lt;reason&gt;” (reason from `tool_name`, e.g. “Ambiguous request”). Otherwise it derives drone vs model from `tool_name` using `MODEL_TOOL_LABELS` and `DRONE_TOOL_LABELS`.
-4. **StatusCard** receives both `status` and `latest`; it shows gateway metrics and “last tool decision” (category, tool_name, action_taken) and parses `llm_response` as JSON for an optional LLM run summary (tokens, timings, etc.).
+2. **Infer**: User submits via `PromptForm` or `QuickActions` → `page.tsx` calls `POST ${GATEWAY_URL}/infer` with `{"Infer": {"prompt": "..."}}` → response stored as `latest`. If `pending_approval: true`, the frontend does not update the "Current active command" cards or add to history; it shows "Proposed: &lt;tool&gt;" and Accept/Reject. If `pending_approval` is false, response is stored as `lastApplied`, cards update, and one entry is prepended to `history`.
+3. **Active command (cards)**: `ActiveCommandBar` receives `confirmed` (`lastApplied`) and `latest`. The Drone and Model cards are driven only by `confirmed` (last response sent to server after Accept). They update only after Accept or when Infer returns without a tool. When there is a pending proposal, a line "Proposed: &lt;tool label&gt; — Approve to send to server" and Accept/Reject buttons are shown.
+4. **Accept**: User clicks Accept → `POST /infer` with `{"ApplyTool": {"category", "tool_name"}}` → response stored as `latest` and `lastApplied`, one entry prepended to `history`.
+5. **Reject**: User clicks Reject → `latest` is updated with `pending_approval: false`; cards and history unchanged.
+6. **StatusCard** receives both `status` and `latest`; it shows gateway metrics and "last tool decision" (category, tool_name, action_taken) and parses `llm_response` as JSON for an optional LLM run summary (tokens, timings, etc.).
 
 ---
 
 ## API calls (from frontend)
 
 - **GET /status**: No body. Returns `StatusResponse`. Used only for polling.
-- **POST /infer**: Body `{"Infer": {"prompt": "<string>"}}`. Returns `ApiResponse`. Override/ClearOverride are not used by the current UI; they could be added (see `gateway/AGENTS.md` for body shapes).
+- **POST /infer**: Body `{"Infer": {"prompt": "<string>"}}` (returns proposal with optional `pending_approval: true`) or `{"ApplyTool": {"category": "<string>", "tool_name": "<string>"}}` (after user accepts). Returns `ApiResponse`. Override/ClearOverride are not used by the current UI (see `gateway/AGENTS.md`).
 
 All requests are `fetch()` from the client; no Next API routes. CORS is enabled on the gateway for all origins.
 

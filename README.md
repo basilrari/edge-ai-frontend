@@ -6,7 +6,7 @@ Next.js dashboard for the **Jetson LLM Gateway**: mission control for search-and
 
 - **Stack**: Next.js 15 (App Router), React 18, TypeScript, Tailwind CSS, Framer Motion, Lucide React
 - **Backend**: Talks to the gateway at `NEXT_PUBLIC_GATEWAY_URL` (default `http://localhost:3000`)
-- **Features**: Status polling, prompt form, quick actions (SAR model tools), history table (last 10 inferences), tools panel, active command bar (drone + model)
+- **Features**: Status polling, prompt form, quick actions (SAR model tools), history table (last 10 inferences), tools panel, active command bar (drone + model). LLM tool proposals are shown with **Accept** / **Reject**; only accepted tools update the active command and are sent to the server; history has one entry per outcome (no double entry for propose then accept).
 
 ## Setup
 
@@ -58,7 +58,7 @@ frontend/
 ## API usage
 
 - **GET `/status`**: Polled every 10 seconds for state, model, override, latencies, memory. Used by `StatusCard` and to show connection.
-- **POST `/infer`**: Sends `{"Infer": {"prompt": "..."}}` when the user submits a prompt or picks a quick action. Response is shown in the active command bar, status card, and history.
+- **POST `/infer`**: Sends `{"Infer": {"prompt": "..."}}` when the user submits a prompt or picks a quick action. If the LLM proposes a tool, the response has `pending_approval: true` and the UI shows Accept/Reject; the active command cards update only after Accept. Sends `{"ApplyTool": {"category", "tool_name"}}` when the user accepts a proposal. History gets one entry per outcome (no double entry).
 
 See the gateway [README](../gateway/README.md) and [AGENTS.md](../gateway/AGENTS.md) for full API details.
 

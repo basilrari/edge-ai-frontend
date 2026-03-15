@@ -40,6 +40,9 @@ function droneDisplay(toolName: string | null): string {
 }
 
 interface Props {
+  /** Last response actually sent to server. Drives Drone/Model cards only (updated after Accept). */
+  confirmed: ApiResponse | null;
+  /** Latest infer response; used for pending proposal UI and Accept/Reject. */
   latest: ApiResponse | null;
   /** Called when user accepts the proposed tool; frontend should call gateway ApplyTool. */
   onAccept?: () => void;
@@ -63,104 +66,123 @@ function noneReasonDisplay(name: string | null): string {
 }
 
 export const ActiveCommandBar: React.FC<Props> = ({
+  confirmed,
   latest,
   onAccept,
   onReject,
   applying = false,
 }) => {
-  const { droneLabel, modelLabel, droneActive, modelActive, noneReason, showApprove } = useMemo(() => {
-    const category = latest?.category ?? null;
-    const tool = latest?.tool_name ?? null;
+  const { droneLabel, modelLabel, droneActive, modelActive, noneReason } = useMemo(() => {
+    const cat = confirmed?.category ?? null;
+    const tool = confirmed?.tool_name ?? null;
 
-    if (category === "none") {
+    if (!confirmed || cat === "none") {
       return {
         droneLabel: "Autonomous mode",
         modelLabel: "Normal sequential flow",
         droneActive: false,
         modelActive: false,
         noneReason: noneReasonDisplay(tool),
-        showApprove: false,
       };
     }
 
     const isDrone = isDroneTool(tool);
     const hasModelTool = tool != null && !isDrone;
-    const pending = latest?.pending_approval === true;
     return {
       droneLabel: isDrone ? droneDisplay(tool) : "Autonomous mode",
       modelLabel: hasModelTool ? modelDisplay(tool) : "Normal sequential flow",
       droneActive: isDrone,
       modelActive: hasModelTool,
       noneReason: null as string | null,
-      showApprove: pending && (isDrone || hasModelTool),
     };
+  }, [confirmed?.category, confirmed?.tool_name]);
+
+  const { showApprove: pending, proposedLabel: proposed } = useMemo(() => {
+    const category = latest?.category ?? null;
+    const tool = latest?.tool_name ?? null;
+    const pending = latest?.pending_approval === true;
+    if (!pending || category === "none") return { showApprove: false, proposedLabel: null as string | null };
+    const isDrone = isDroneTool(tool);
+    const hasModel = tool != null && !isDrone;
+    const label = isDrone ? droneDisplay(tool) : hasModel ? modelDisplay(tool) : null;
+    return { showApprove: true, proposedLabel: label };
   }, [latest?.category, latest?.tool_name, latest?.pending_approval]);
+
+  const messageLine = !pending && noneReason != null
+    ? `No tool selected — ${noneReason}`
+    : pending && proposed
+      ? `Proposed: ${proposed} — Approve to send to server`
+      : null;
 
   return (
     <motion.section
-      className="min-w-0 space-y-3"
+      className="min-w-0"
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
     >
-      {noneReason != null && !showApprove && (
-        <p className="text-xs text-slate-400">
-          No tool selected — {noneReason}
-        </p>
-      )}
-      {showApprove && (
-        <p className="text-xs text-amber-400/90">
-          Approve tool to send to server
-        </p>
-      )}
-      <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
-        <div className="flex min-w-0 flex-col gap-1.5 rounded-xl border border-cyan-500/25 bg-slate-900/50 px-4 py-3 backdrop-blur-sm">
-        <div className="flex items-center gap-2 text-[11px] font-medium uppercase tracking-wider text-slate-400">
-          <Plane className="h-3.5 w-3.5 text-cyan-400" />
-          <span>Drone</span>
+      <div className="flex min-w-0 flex-col gap-3">
+        {/* Message line: fixed height so layout doesn't shift when content changes */}
+        <div className="min-h-[1.25rem] text-xs leading-5">
+          {messageLine != null && (
+            <p className={pending ? "text-amber-400/90" : "text-slate-400"}>
+              {messageLine}
+            </p>
+          )}
         </div>
-        <p
-          className={`min-w-0 truncate text-sm font-medium sm:text-base ${droneActive ? "text-cyan-300" : "text-slate-300"}`}
-          title={droneLabel}
-        >
-          {droneLabel}
-        </p>
-        </div>
-        <div className="flex min-w-0 flex-col gap-1.5 rounded-xl border border-cyan-500/25 bg-slate-900/50 px-4 py-3 backdrop-blur-sm">
-          <div className="flex items-center gap-2 text-[11px] font-medium uppercase tracking-wider text-slate-400">
-            <Cpu className="h-3.5 w-3.5 text-emerald-400" />
-            <span>Model</span>
+
+        {/* Drone + Model cards */}
+        <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
+          <div className="flex min-w-0 flex-col gap-1.5 rounded-xl border border-cyan-500/25 bg-slate-900/50 px-4 py-3 backdrop-blur-sm">
+            <div className="flex items-center gap-2 text-[11px] font-medium uppercase tracking-wider text-slate-400">
+              <Plane className="h-3.5 w-3.5 flex-shrink-0 text-cyan-400" />
+              <span>Drone</span>
+            </div>
+            <p
+              className={`min-w-0 truncate text-sm font-medium sm:text-base ${droneActive ? "text-cyan-300" : "text-slate-300"}`}
+              title={droneLabel}
+            >
+              {droneLabel}
+            </p>
           </div>
-          <p
-            className={`min-w-0 truncate text-sm font-medium sm:text-base ${modelActive ? "text-emerald-300" : "text-slate-300"}`}
-            title={modelLabel}
-          >
-            {modelLabel}
-          </p>
+          <div className="flex min-w-0 flex-col gap-1.5 rounded-xl border border-cyan-500/25 bg-slate-900/50 px-4 py-3 backdrop-blur-sm">
+            <div className="flex items-center gap-2 text-[11px] font-medium uppercase tracking-wider text-slate-400">
+              <Cpu className="h-3.5 w-3.5 flex-shrink-0 text-emerald-400" />
+              <span>Model</span>
+            </div>
+            <p
+              className={`min-w-0 truncate text-sm font-medium sm:text-base ${modelActive ? "text-emerald-300" : "text-slate-300"}`}
+              title={modelLabel}
+            >
+              {modelLabel}
+            </p>
+          </div>
         </div>
+
+        {/* Approval actions: single block with consistent padding so it doesn't disrupt layout */}
+        {pending && onAccept && onReject && (
+          <div className="flex flex-wrap items-center gap-2 rounded-xl border border-amber-500/20 bg-slate-900/40 px-3 py-2.5">
+            <button
+              type="button"
+              onClick={onAccept}
+              disabled={applying}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white shadow hover:bg-emerald-500 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-emerald-400/50"
+            >
+              <Check className="h-4 w-4 shrink-0" />
+              Accept
+            </button>
+            <button
+              type="button"
+              onClick={onReject}
+              disabled={applying}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-500 bg-slate-800/80 px-3 py-1.5 text-sm font-medium text-slate-200 hover:bg-slate-700 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-slate-400/50"
+            >
+              <X className="h-4 w-4 shrink-0" />
+              Reject
+            </button>
+          </div>
+        )}
       </div>
-      {showApprove && onAccept && onReject && (
-        <div className="flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            onClick={onAccept}
-            disabled={applying}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white shadow hover:bg-emerald-500 disabled:opacity-50"
-          >
-            <Check className="h-4 w-4" />
-            Accept
-          </button>
-          <button
-            type="button"
-            onClick={onReject}
-            disabled={applying}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-slate-500 bg-slate-800/80 px-3 py-1.5 text-sm font-medium text-slate-200 hover:bg-slate-700 disabled:opacity-50"
-          >
-            <X className="h-4 w-4" />
-            Reject
-          </button>
-        </div>
-      )}
     </motion.section>
   );
 };

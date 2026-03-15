@@ -21,6 +21,8 @@ interface HistoryEntry extends ApiResponse {
 export default function Page(): JSX.Element {
   const [status, setStatus] = useState<StatusResponse | null>(null);
   const [latest, setLatest] = useState<ApiResponse | null>(null);
+  /** Last response actually sent to server (accepted). Drives "Current active command" cards only. */
+  const [lastApplied, setLastApplied] = useState<ApiResponse | null>(null);
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [loading, setLoading] = useState(false);
   const [applying, setApplying] = useState(false);
@@ -66,11 +68,14 @@ export default function Page(): JSX.Element {
       if (!res.ok) throw new Error(`infer status ${res.status}`);
       const data = (await res.json()) as ApiResponse;
       setLatest(data);
-      const entry: HistoryEntry = {
-        ...data,
-        timestamp: new Date().toISOString(),
-      };
-      setHistory((prev) => [entry, ...prev].slice(0, 10));
+      if (!data.pending_approval) {
+        setLastApplied(data);
+        const entry: HistoryEntry = {
+          ...data,
+          timestamp: new Date().toISOString(),
+        };
+        setHistory((prev) => [entry, ...prev].slice(0, 10));
+      }
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : "unknown error";
       setError(msg);
@@ -100,6 +105,7 @@ export default function Page(): JSX.Element {
       if (!res.ok) throw new Error(`apply status ${res.status}`);
       const data = (await res.json()) as ApiResponse;
       setLatest(data);
+      setLastApplied(data);
       const entry: HistoryEntry = {
         ...data,
         timestamp: new Date().toISOString(),
@@ -163,6 +169,7 @@ export default function Page(): JSX.Element {
             Current active command
           </h2>
           <ActiveCommandBar
+            confirmed={lastApplied}
             latest={latest}
             onAccept={handleAcceptTool}
             onReject={handleRejectTool}
