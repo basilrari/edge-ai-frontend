@@ -5,7 +5,8 @@ import { motion } from "framer-motion";
 import { ScanEye, Network, Brain, Share2, Waves } from "lucide-react";
 
 interface Props {
-  onSelect: (prompt: string) => Promise<void> | void;
+  /** Called when user picks a predefined prompt; fills the input so they can edit and send. */
+  onSelect: (prompt: string) => void;
   disabled: boolean;
 }
 
@@ -44,8 +45,9 @@ const QUICK_PROMPTS: {
 export const QuickActions: React.FC<Props> = ({ onSelect, disabled }) => {
   return (
     <div className="min-w-0 space-y-2">
-      <div className="flex min-w-0 items-center justify-between text-xs text-slate-400">
+      <div className="flex min-w-0 flex-col gap-0.5 text-xs text-slate-400">
         <span className="truncate">Quick model actions (tools)</span>
+        <span className="text-[11px] text-slate-500">Click to fill the prompt above; edit if needed, then press Send Prompt.</span>
       </div>
       {/* Mobile: vertical list of big buttons; Desktop: 2-column grid */}
       <div className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2">

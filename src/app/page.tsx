@@ -84,10 +84,9 @@ export default function Page(): JSX.Element {
     }
   };
 
-  const handleQuickSelect = async (prompt: string) => {
-    // Show in input first for better UX, then send
+  const handleQuickSelect = (prompt: string) => {
     setPromptValue(prompt);
-    await onSendPrompt(prompt);
+    // User can edit the prompt and press "Send Prompt" to send
   };
 
   const handleAcceptTool = async () => {
