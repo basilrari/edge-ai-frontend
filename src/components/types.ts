@@ -4,6 +4,8 @@ export interface ApiResponse {
   override_active: boolean;
   category: string | null;
   tool_name: string | null;
+  /** When true, response is a proposal; show Accept/Reject. Only ApplyTool sends to Python. */
+  pending_approval: boolean;
   llm_response: string;
   action_taken: string;
   latency_ms: number;

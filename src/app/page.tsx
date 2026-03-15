@@ -23,6 +23,7 @@ export default function Page(): JSX.Element {
   const [latest, setLatest] = useState<ApiResponse | null>(null);
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [loading, setLoading] = useState(false);
+  const [applying, setApplying] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [promptValue, setPromptValue] = useState("");
 
@@ -84,6 +85,39 @@ export default function Page(): JSX.Element {
     await onSendPrompt(prompt);
   };
 
+  const handleAcceptTool = async () => {
+    if (!latest?.category || !latest?.tool_name || latest.pending_approval !== true) return;
+    setApplying(true);
+    setError(null);
+    try {
+      const res = await fetch(`${GATEWAY_URL}/infer`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ApplyTool: { category: latest.category, tool_name: latest.tool_name },
+        }),
+      });
+      if (!res.ok) throw new Error(`apply status ${res.status}`);
+      const data = (await res.json()) as ApiResponse;
+      setLatest(data);
+      const entry: HistoryEntry = {
+        ...data,
+        timestamp: new Date().toISOString(),
+      };
+      setHistory((prev) => [entry, ...prev].slice(0, 10));
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : "unknown error";
+      setError(msg);
+    } finally {
+      setApplying(false);
+    }
+  };
+
+  const handleRejectTool = () => {
+    if (!latest) return;
+    setLatest({ ...latest, pending_approval: false });
+  };
+
   const gatewayUrl = useMemo(() => GATEWAY_URL, []);
 
   return (
@@ -128,7 +162,12 @@ export default function Page(): JSX.Element {
           <h2 className="text-xs font-medium uppercase tracking-wider text-slate-500">
             Current active command
           </h2>
-          <ActiveCommandBar latest={latest} />
+          <ActiveCommandBar
+            latest={latest}
+            onAccept={handleAcceptTool}
+            onReject={handleRejectTool}
+            applying={applying}
+          />
         </div>
 
         {/* Main content */}
