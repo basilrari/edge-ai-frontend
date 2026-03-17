@@ -4,6 +4,13 @@ This file describes the **frontend structure**, **conventions**, and **integrati
 
 ---
 
+## Project context
+
+- **Code** is the SAR (Search and Rescue) drone repo. See [Code/README.md](../README.md) for the full architecture (Frontend → Gateway → LLM → Drone Server / Model Server).
+- The **frontend** is the operator’s main interface: text input for natural-language intent, quick actions for SAR model tools, and (planned) map for waypoint selection and mission control. It talks only to the **Gateway** (HTTP). The Gateway routes accepted commands to the **Drone Server** (drone-server/) or **Model Server** (python-worker / ROS2). Do not call drone-server or model server directly from the frontend.
+
+---
+
 ## Base context
 
 - **Repo**: Frontend lives in `frontend/`; gateway (Rust API) lives in `gateway/`.

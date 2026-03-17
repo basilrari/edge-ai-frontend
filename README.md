@@ -2,6 +2,10 @@
 
 Next.js dashboard for the **Jetson LLM Gateway**: mission control for search-and-rescue drone intelligence. Send natural-language prompts, view gateway status, and see the current active drone/model command and inference history.
 
+## How this ties into the project
+
+This frontend is the **operator UI** for the [SAR drone system](../README.md). The user types intent (e.g. “detect humans”, “return to home”, “circle this area”) in the text box; the frontend sends that to the **Gateway** (`gateway/`). The Gateway calls the **LLM** and returns a proposed **drone** or **model** tool; the user Accepts or Rejects. Accepted **model** tools are sent to the **Model Server** (flood segmentation, flood classification, human detection); accepted **drone** tools will be sent to the **Drone Server** (`drone-server/`) once that integration is wired. Map-based waypoint selection and mission/override controls are planned. See the root [README](../README.md) for the full architecture.
+
 ## Overview
 
 - **Stack**: Next.js 15 (App Router), React 18, TypeScript, Tailwind CSS, Framer Motion, Lucide React
