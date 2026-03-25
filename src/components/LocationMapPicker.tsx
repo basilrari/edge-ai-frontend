@@ -1,7 +1,14 @@
 "use client";
 
 import L from "leaflet";
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   MapContainer,
   Marker,
@@ -61,59 +68,91 @@ export function LocationMapPicker({
   const icon = useMemo(() => createMarkerIcon(), []);
   const mapRef = useRef<L.Map | null>(null);
   const [mapOpen, setMapOpen] = useState(false);
+  /** Increment when opening the modal so Leaflet always mounts a fresh container (avoids “already initialized”). */
+  const [mapMountKey, setMapMountKey] = useState(0);
+  /** Defer map mount one frame after modal opens so Strict Mode / cleanup can finish (avoids Leaflet “already initialized”). */
+  const [mapDomReady, setMapDomReady] = useState(false);
   const [isLocating, setIsLocating] = useState(false);
   const MIN_ZOOM = 2;
   const MAX_ZOOM = 19;
 
   const tryLocateUser = useCallback(
-    (onFail?: () => void) => {
-      if (!navigator.geolocation) {
-        setLocationError("Geolocation is not supported in this browser.");
-        onFail?.();
-        return;
-      }
-
-      setLocationError(null);
-      navigator.geolocation.getCurrentPosition(
-        (result) => {
-          const { latitude, longitude } = result.coords;
-          const current: [number, number] = [latitude, longitude];
-          setPosition(current);
-          setMapCenter(current);
-          setZoomLevel(16);
-          if (mapRef.current) {
-            mapRef.current.setView(current, 16, { animate: true });
-          }
-        },
-        () => {
-          setLocationError("Could not access your location, using fallback start point.");
+    (onFail?: () => void): Promise<void> => {
+      return new Promise((resolve) => {
+        if (!navigator.geolocation) {
+          setLocationError("Geolocation is not supported in this browser.");
           onFail?.();
-        },
-        {
-          enableHighAccuracy: true,
-          timeout: 10000,
-          maximumAge: 30000,
+          resolve();
+          return;
         }
-      );
+
+        setLocationError(null);
+        navigator.geolocation.getCurrentPosition(
+          (result) => {
+            const { latitude, longitude } = result.coords;
+            const current: [number, number] = [latitude, longitude];
+            setPosition(current);
+            setMapCenter(current);
+            setZoomLevel(16);
+            if (mapRef.current) {
+              mapRef.current.setView(current, 16, { animate: true });
+            }
+            resolve();
+          },
+          () => {
+            setLocationError(
+              "Could not access your location, using fallback start point."
+            );
+            onFail?.();
+            resolve();
+          },
+          {
+            enableHighAccuracy: true,
+            timeout: 10000,
+            maximumAge: 30000,
+          }
+        );
+      });
     },
     []
   );
 
   useEffect(() => {
     let active = true;
-    tryLocateUser(() => {
-      if (!active) return;
-      setMapCenter(defaultCenter);
-      setPosition(defaultCenter);
-      setZoomLevel(16);
-    });
-    if (active) {
-      setIsLoadingInitialLocation(false);
-    }
+    setIsLoadingInitialLocation(true);
+    void (async () => {
+      await tryLocateUser(() => {
+        if (!active) return;
+        setMapCenter(defaultCenter);
+        setPosition(defaultCenter);
+        setZoomLevel(16);
+      });
+      if (active) {
+        setIsLoadingInitialLocation(false);
+      }
+    })();
     return () => {
       active = false;
     };
   }, [defaultCenter, tryLocateUser]);
+
+  useEffect(() => {
+    if (!mapOpen) {
+      mapRef.current = null;
+    }
+  }, [mapOpen]);
+
+  useLayoutEffect(() => {
+    if (!mapOpen || !mapCenter || isLoadingInitialLocation) {
+      setMapDomReady(false);
+      return;
+    }
+    const id = requestAnimationFrame(() => setMapDomReady(true));
+    return () => {
+      cancelAnimationFrame(id);
+      setMapDomReady(false);
+    };
+  }, [mapOpen, mapCenter, isLoadingInitialLocation, mapMountKey]);
 
   const handlePick = useCallback(
     (lat: number, lng: number) => {
@@ -213,7 +252,10 @@ export function LocationMapPicker({
         <button
           type="button"
           className="outline w-full sm:w-auto"
-          onClick={() => setMapOpen(true)}
+          onClick={() => {
+            setMapMountKey((k) => k + 1);
+            setMapOpen(true);
+          }}
         >
           {position ? "Edit on map" : "Select on map"}
         </button>
@@ -253,70 +295,82 @@ export function LocationMapPicker({
                   </div>
                 </div>
               ) : (
-                <div className="h-[70vh] min-h-[420px]">
-                  <MapContainer
-                    center={mapCenter}
-                    zoom={zoomLevel}
-                    zoomControl={false}
-                    attributionControl={false}
-                    ref={mapRef}
-                    className="h-full w-full"
-                    style={{ height: "100%", width: "100%" }}
-                    scrollWheelZoom
-                  >
-                    <TileLayer
-                      attribution="Imagery © Esri"
-                      url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
-                    />
-                    <MapInteractionHandler
-                      onPick={handlePick}
-                      onZoomChange={setZoomLevel}
-                    />
-                    {position && <Marker position={position} icon={icon} />}
-                  </MapContainer>
+                <div className="relative h-[70vh] min-h-[420px]">
+                  {!mapDomReady ? (
+                    <div className="flex h-full items-center justify-center text-xs text-slate-400">
+                      <span className="inline-flex items-center gap-2">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Loading map…
+                      </span>
+                    </div>
+                  ) : (
+                    <>
+                      <MapContainer
+                        key={mapMountKey}
+                        center={mapCenter}
+                        zoom={zoomLevel}
+                        zoomControl={false}
+                        attributionControl={false}
+                        ref={mapRef}
+                        className="h-full w-full"
+                        style={{ height: "100%", width: "100%" }}
+                        scrollWheelZoom
+                      >
+                        <TileLayer
+                          attribution="Imagery © Esri"
+                          url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+                        />
+                        <MapInteractionHandler
+                          onPick={handlePick}
+                          onZoomChange={setZoomLevel}
+                        />
+                        {position && <Marker position={position} icon={icon} />}
+                      </MapContainer>
 
-                  <button
-                    type="button"
-                    onClick={handleLocateMe}
-                    disabled={isLocating}
-                    className="absolute right-3 top-3 z-[500] inline-flex h-10 w-10 items-center justify-center rounded-md border border-cyan-500/40 bg-slate-900/85 text-cyan-200 shadow-md transition hover:bg-slate-800 disabled:opacity-60 disabled:hover:bg-slate-900/85"
-                    title="Center on my location"
-                    aria-label="Center on my location"
-                  >
-                    {isLocating ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <LocateFixed className="h-4 w-4" />
-                    )}
-                  </button>
+                      <button
+                        type="button"
+                        onClick={handleLocateMe}
+                        disabled={isLocating}
+                        className="absolute right-3 top-3 z-[500] inline-flex h-10 w-10 items-center justify-center rounded-md border border-cyan-500/40 bg-slate-900/85 text-cyan-200 shadow-md transition hover:bg-slate-800 disabled:opacity-60 disabled:hover:bg-slate-900/85"
+                        title="Center on my location"
+                        aria-label="Center on my location"
+                      >
+                        {isLocating ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <LocateFixed className="h-4 w-4" />
+                        )}
+                      </button>
 
-                  <div className="absolute bottom-3 right-3 z-[500] flex h-40 w-10 flex-col items-center rounded-md border border-cyan-500/35 bg-slate-900/85 py-3">
-                    <span className="text-[10px] font-semibold text-cyan-200">
-                      +
-                    </span>
-                    <input
-                      type="range"
-                      min={MIN_ZOOM}
-                      max={MAX_ZOOM}
-                      step={1}
-                      // Invert slider direction so "slide up => zoom in"
-                      value={MAX_ZOOM + MIN_ZOOM - zoomLevel}
-                      onChange={(e) => {
-                        const sliderValue = Number(e.target.value);
-                        const nextZoom = MAX_ZOOM + MIN_ZOOM - sliderValue;
-                        handleSliderZoomChange(nextZoom);
-                      }}
-                      className="my-1 h-28 w-6 cursor-pointer appearance-none bg-transparent [writing-mode:vertical-lr] [&::-webkit-slider-runnable-track]:w-1 [&::-webkit-slider-runnable-track]:rounded-full [&::-webkit-slider-runnable-track]:bg-cyan-500/40 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-cyan-200"
-                      aria-label="Zoom slider"
-                    />
-                    <span className="text-[10px] font-semibold text-cyan-200">
-                      -
-                    </span>
-                  </div>
+                      <div className="absolute bottom-3 right-3 z-[500] flex h-40 w-10 flex-col items-center rounded-md border border-cyan-500/35 bg-slate-900/85 py-3">
+                        <span className="text-[10px] font-semibold text-cyan-200">
+                          +
+                        </span>
+                        <input
+                          type="range"
+                          min={MIN_ZOOM}
+                          max={MAX_ZOOM}
+                          step={1}
+                          // Invert slider direction so "slide up => zoom in"
+                          value={MAX_ZOOM + MIN_ZOOM - zoomLevel}
+                          onChange={(e) => {
+                            const sliderValue = Number(e.target.value);
+                            const nextZoom = MAX_ZOOM + MIN_ZOOM - sliderValue;
+                            handleSliderZoomChange(nextZoom);
+                          }}
+                          className="my-1 h-28 w-6 cursor-pointer appearance-none bg-transparent [writing-mode:vertical-lr] [&::-webkit-slider-runnable-track]:w-1 [&::-webkit-slider-runnable-track]:rounded-full [&::-webkit-slider-runnable-track]:bg-cyan-500/40 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-cyan-200"
+                          aria-label="Zoom slider"
+                        />
+                        <span className="text-[10px] font-semibold text-cyan-200">
+                          -
+                        </span>
+                      </div>
 
-                  <div className="pointer-events-none absolute bottom-2 left-2 z-[400] text-[10px] text-slate-400">
-                    Imagery © Esri
-                  </div>
+                      <div className="pointer-events-none absolute bottom-2 left-2 z-[400] text-[10px] text-slate-400">
+                        Imagery © Esri
+                      </div>
+                    </>
+                  )}
                 </div>
               )}
             </div>
