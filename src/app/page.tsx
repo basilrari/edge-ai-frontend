@@ -15,14 +15,7 @@ import { Activity, SatelliteDish } from "lucide-react";
 const LocationMapPicker = dynamic(
   () =>
     import("../components/LocationMapPicker").then((m) => m.LocationMapPicker),
-  {
-    ssr: false,
-    loading: () => (
-      <div className="mt-4 flex h-56 items-center justify-center rounded-xl border border-cyan-500/20 bg-slate-950/40 text-xs text-slate-500">
-        Loading map…
-      </div>
-    ),
-  }
+  { ssr: false, loading: () => null }
 );
 
 const GATEWAY_URL =
@@ -216,11 +209,16 @@ export default function Page(): JSX.Element {
                 error={error}
                 value={promptValue}
                 onChange={setPromptValue}
+                locationPicker={
+                  <LocationMapPicker
+                    inline
+                    onAppendToPrompt={handleAppendFromMap}
+                  />
+                }
               />
               <div className="mt-4">
                 <QuickActions onSelect={handleQuickSelect} disabled={loading} />
               </div>
-              <LocationMapPicker onAppendToPrompt={handleAppendFromMap} />
             </motion.div>
 
             <motion.div

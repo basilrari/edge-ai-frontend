@@ -2,6 +2,7 @@
 
 import L from "leaflet";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import "leaflet/dist/leaflet.css";
 import { LocateFixed, Loader2, MapPin, X } from "lucide-react";
 
@@ -20,9 +21,14 @@ function createMarkerIcon(): L.Icon {
 
 export interface LocationMapPickerProps {
   onAppendToPrompt: (snippet: string) => void;
+  /** When true, only the compact control row (for use beside Send prompt). */
+  inline?: boolean;
 }
 
-export function LocationMapPicker({ onAppendToPrompt }: LocationMapPickerProps): JSX.Element {
+export function LocationMapPicker({
+  onAppendToPrompt,
+  inline = false,
+}: LocationMapPickerProps): JSX.Element {
   const defaultCenter = useMemo<[number, number]>(() => [23.558, 120.473], []);
   const icon = useMemo(() => createMarkerIcon(), []);
 
@@ -170,7 +176,9 @@ export function LocationMapPicker({ onAppendToPrompt }: LocationMapPickerProps):
   const handleAppend = () => {
     if (!position) return;
     const [lat, lon] = position;
-    onAppendToPrompt(`${lat.toFixed(6)}, ${lon.toFixed(6)}`);
+    onAppendToPrompt(
+      `lat : ${lat.toFixed(6)}, long : ${lon.toFixed(6)}`
+    );
     setMapOpen(false);
   };
 
@@ -179,114 +187,146 @@ export function LocationMapPicker({ onAppendToPrompt }: LocationMapPickerProps):
     updateMarker(null);
   };
 
-  return (
-    <div className="border-t border-cyan-500/15 pt-4">
-      <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex min-w-0 items-center gap-2 text-sm text-slate-300">
-          <MapPin className="h-4 w-4 shrink-0 text-cyan-300" />
-          <p className="truncate">Add a location to your prompt or inject waypoints.</p>
-        </div>
-        <button type="button" className="outline w-full sm:w-auto" onClick={() => setMapOpen(true)}>
-          Select on map
-        </button>
-      </div>
-
-      {mapOpen && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-950/70 p-3">
-          <div className="relative w-full max-w-5xl overflow-hidden rounded-2xl border border-cyan-500/20 bg-slate-950/90 shadow-2xl backdrop-blur">
-            <div className="flex items-center justify-between gap-3 border-b border-cyan-500/15 px-4 py-3">
-              <div className="min-w-0">
-                <h3 className="truncate text-sm font-medium text-slate-100">Select waypoint</h3>
-                <p className="text-[11px] text-slate-500">Click map to place/update the point.</p>
-              </div>
-              <button
-                type="button"
-                className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-cyan-500/40 bg-slate-900/70 text-cyan-200 hover:bg-slate-800"
-                onClick={() => setMapOpen(false)}
-                aria-label="Close map"
-              >
-                <X className="h-4 w-4" />
-              </button>
+  const mapModal =
+    mapOpen &&
+    createPortal(
+      <div
+        className="fixed inset-0 z-[10000] flex items-center justify-center bg-slate-950/70 p-3"
+        role="presentation"
+        onClick={() => setMapOpen(false)}
+      >
+        <div
+          className="relative mx-auto w-full max-w-5xl overflow-hidden rounded-2xl border border-cyan-500/20 bg-slate-950/90 shadow-2xl backdrop-blur"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="location-map-title"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="flex items-center justify-between gap-3 border-b border-cyan-500/15 px-4 py-3">
+            <div className="min-w-0">
+              <h3 id="location-map-title" className="truncate text-sm font-medium text-slate-100">
+                Select waypoint
+              </h3>
+              <p className="text-[11px] text-slate-500">Click map to place/update the point.</p>
             </div>
+            <button
+              type="button"
+              className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-cyan-500/40 bg-slate-900/70 text-cyan-200 hover:bg-slate-800"
+              onClick={() => setMapOpen(false)}
+              aria-label="Close map"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
 
-            <div className="relative">
-              {isLoadingInitialLocation || !mapCenter ? (
-                <div className="flex h-[70vh] min-h-[420px] flex-col items-center justify-center gap-2 text-xs text-slate-400">
-                  <span className="inline-flex items-center gap-2">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Getting your location...
-                  </span>
+          <div className="relative">
+            {isLoadingInitialLocation || !mapCenter ? (
+              <div className="flex h-[70vh] min-h-[420px] flex-col items-center justify-center gap-2 text-xs text-slate-400">
+                <span className="inline-flex items-center gap-2">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Getting your location...
+                </span>
+              </div>
+            ) : (
+              <div className="relative h-[70vh] min-h-[420px]">
+                <div ref={mapContainerRef} className="h-full w-full" />
+
+                <button
+                  type="button"
+                  onClick={handleLocateMe}
+                  disabled={isLocating}
+                  className="absolute right-3 top-3 z-[500] inline-flex h-10 w-10 items-center justify-center rounded-md border border-cyan-500/40 bg-slate-900/85 text-cyan-200 shadow-md transition hover:bg-slate-800 disabled:opacity-60"
+                  title="Center on my location"
+                  aria-label="Center on my location"
+                >
+                  {isLocating ? <Loader2 className="h-4 w-4 animate-spin" /> : <LocateFixed className="h-4 w-4" />}
+                </button>
+
+                <div className="absolute bottom-3 right-3 z-[500] flex h-40 w-10 flex-col items-center rounded-md border border-cyan-500/35 bg-slate-900/85 py-3">
+                  <span className="text-[10px] font-semibold text-cyan-200">+</span>
+                  <input
+                    type="range"
+                    min={MIN_ZOOM}
+                    max={MAX_ZOOM}
+                    step={1}
+                    value={MAX_ZOOM + MIN_ZOOM - zoomLevel}
+                    onChange={(e) => {
+                      const sliderValue = Number(e.target.value);
+                      const nextZoom = MAX_ZOOM + MIN_ZOOM - sliderValue;
+                      handleSliderZoomChange(nextZoom);
+                    }}
+                    className="my-1 h-28 w-6 cursor-pointer appearance-none bg-transparent [writing-mode:vertical-lr] [&::-webkit-slider-runnable-track]:w-1 [&::-webkit-slider-runnable-track]:rounded-full [&::-webkit-slider-runnable-track]:bg-cyan-500/40 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-cyan-200"
+                    aria-label="Zoom slider"
+                  />
+                  <span className="text-[10px] font-semibold text-cyan-200">-</span>
                 </div>
-              ) : (
-                <div className="relative h-[70vh] min-h-[420px]">
-                  <div ref={mapContainerRef} className="h-full w-full" />
 
+                <div className="absolute bottom-3 left-3 z-[500] flex flex-wrap items-center gap-2">
                   <button
                     type="button"
-                    onClick={handleLocateMe}
-                    disabled={isLocating}
-                    className="absolute right-3 top-3 z-[500] inline-flex h-10 w-10 items-center justify-center rounded-md border border-cyan-500/40 bg-slate-900/85 text-cyan-200 shadow-md transition hover:bg-slate-800 disabled:opacity-60"
-                    title="Center on my location"
-                    aria-label="Center on my location"
+                    className="outline bg-slate-900/85"
+                    onClick={handleAppend}
+                    disabled={!position}
                   >
-                    {isLocating ? <Loader2 className="h-4 w-4 animate-spin" /> : <LocateFixed className="h-4 w-4" />}
+                    Append to prompt
                   </button>
-
-                  <div className="absolute bottom-3 right-3 z-[500] flex h-40 w-10 flex-col items-center rounded-md border border-cyan-500/35 bg-slate-900/85 py-3">
-                    <span className="text-[10px] font-semibold text-cyan-200">+</span>
-                    <input
-                      type="range"
-                      min={MIN_ZOOM}
-                      max={MAX_ZOOM}
-                      step={1}
-                      value={MAX_ZOOM + MIN_ZOOM - zoomLevel}
-                      onChange={(e) => {
-                        const sliderValue = Number(e.target.value);
-                        const nextZoom = MAX_ZOOM + MIN_ZOOM - sliderValue;
-                        handleSliderZoomChange(nextZoom);
-                      }}
-                      className="my-1 h-28 w-6 cursor-pointer appearance-none bg-transparent [writing-mode:vertical-lr] [&::-webkit-slider-runnable-track]:w-1 [&::-webkit-slider-runnable-track]:rounded-full [&::-webkit-slider-runnable-track]:bg-cyan-500/40 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-cyan-200"
-                      aria-label="Zoom slider"
-                    />
-                    <span className="text-[10px] font-semibold text-cyan-200">-</span>
-                  </div>
-
-                  <div className="absolute bottom-3 left-3 z-[500] flex flex-wrap items-center gap-2">
-                    <button
-                      type="button"
-                      className="outline bg-slate-900/85"
-                      onClick={handleAppend}
-                      disabled={!position}
-                    >
-                      Append to prompt
-                    </button>
-                    <button
-                      type="button"
-                      className="outline bg-slate-900/85"
-                      onClick={handleClear}
-                      disabled={!position}
-                    >
-                      Clear point
-                    </button>
-                  </div>
-
-                  {position && (
-                    <div className="pointer-events-none absolute bottom-3 left-1/2 z-[500] -translate-x-1/2 rounded-md border border-cyan-500/25 bg-slate-950/80 px-2.5 py-1 text-[11px] font-mono text-slate-200">
-                      {position[0].toFixed(6)}, {position[1].toFixed(6)}
-                    </div>
-                  )}
+                  <button
+                    type="button"
+                    className="outline bg-slate-900/85"
+                    onClick={handleClear}
+                    disabled={!position}
+                  >
+                    Clear point
+                  </button>
                 </div>
-              )}
-            </div>
 
-            {locationError && (
-              <div className="border-t border-cyan-500/15 px-4 py-2 text-[11px] text-amber-300">
-                {locationError}
+                {position && (
+                  <div className="pointer-events-none absolute bottom-3 left-1/2 z-[500] max-w-[95%] -translate-x-1/2 rounded-md border border-cyan-500/25 bg-slate-950/80 px-2.5 py-1 text-center text-[11px] font-mono text-slate-200">
+                    lat : {position[0].toFixed(6)}, long : {position[1].toFixed(6)}
+                  </div>
+                )}
               </div>
             )}
           </div>
+
+          {locationError && (
+            <div className="border-t border-cyan-500/15 px-4 py-2 text-[11px] text-amber-300">{locationError}</div>
+          )}
         </div>
-      )}
+      </div>,
+      document.body
+    );
+
+  const controlRow = (
+    <div
+      className={
+        inline
+          ? "flex w-full min-w-0 flex-col gap-2 sm:w-auto sm:max-w-[min(100%,28rem)] sm:flex-row sm:items-center sm:gap-3"
+          : "flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between"
+      }
+    >
+      <div className="flex min-w-0 items-center gap-2 text-xs text-slate-400 sm:text-sm sm:text-slate-300">
+        <MapPin className="h-4 w-4 shrink-0 text-cyan-300" />
+        <p className="min-w-0 truncate">Add a location to your prompt or inject waypoints.</p>
+      </div>
+      <button
+        type="button"
+        className="outline w-full shrink-0 sm:w-auto"
+        onClick={() => setMapOpen(true)}
+      >
+        Select on map
+      </button>
     </div>
+  );
+
+  return (
+    <>
+      {inline ? (
+        controlRow
+      ) : (
+        <div className="border-t border-cyan-500/15 pt-4">{controlRow}</div>
+      )}
+      {mapModal}
+    </>
   );
 }

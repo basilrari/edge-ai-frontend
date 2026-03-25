@@ -10,6 +10,8 @@ interface Props {
   error: string | null;
   value: string;
   onChange: (value: string) => void;
+  /** Shown under the textarea, before the Send button (e.g. map picker). */
+  locationPicker?: React.ReactNode;
 }
 
 export const PromptForm: React.FC<Props> = ({
@@ -18,6 +20,7 @@ export const PromptForm: React.FC<Props> = ({
   error,
   value,
   onChange,
+  locationPicker,
 }) => {
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -48,12 +51,13 @@ export const PromptForm: React.FC<Props> = ({
         onChange={(e) => onChange(e.target.value)}
         placeholder="e.g. sweep the flooded area ahead, prioritize human detection and circle around any detected clusters"
       />
-      <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end sm:gap-3">
+        {locationPicker}
         <motion.button
           whileHover={{ scale: loading ? 1 : 1.02 }}
           whileTap={{ scale: loading ? 1 : 0.98 }}
           type="submit"
-          className="primary h-10 min-w-[140px] w-full justify-center sm:w-auto"
+          className="primary h-10 min-w-[140px] w-full shrink-0 justify-center sm:w-auto"
           disabled={loading || !value.trim()}
         >
           {loading ? (
@@ -68,10 +72,10 @@ export const PromptForm: React.FC<Props> = ({
             </>
           )}
         </motion.button>
-        {error && (
-          <p className="min-w-0 truncate text-xs text-danger sm:max-w-sm">Error: {error}</p>
-        )}
       </div>
+      {error && (
+        <p className="min-w-0 text-xs text-danger sm:max-w-xl">Error: {error}</p>
+      )}
     </motion.form>
   );
 };
