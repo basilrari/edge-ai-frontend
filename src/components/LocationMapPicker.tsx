@@ -176,9 +176,7 @@ export function LocationMapPicker({
   const handleAppend = () => {
     if (!position) return;
     const [lat, lon] = position;
-    onAppendToPrompt(
-      `lat : ${lat.toFixed(6)}, long : ${lon.toFixed(6)}`
-    );
+    onAppendToPrompt(`{ "lat": ${lat.toFixed(6)}, "long": ${lon.toFixed(6)} }`);
     setMapOpen(false);
   };
 
