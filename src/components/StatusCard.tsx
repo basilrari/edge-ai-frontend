@@ -13,6 +13,7 @@ import {
 interface Props {
   status: StatusResponse | null;
   latest: ApiResponse | null;
+  statusError?: string | null;
 }
 
 interface LlmSummary {
@@ -27,7 +28,7 @@ interface LlmSummary {
   tokensPerSecond?: number;
 }
 
-export const StatusCard: React.FC<Props> = ({ status, latest }) => {
+export const StatusCard: React.FC<Props> = ({ status, latest, statusError = null }) => {
   const [copied, setCopied] = useState(false);
 
   const state = latest?.state ?? status?.state ?? "UNKNOWN";
@@ -122,6 +123,13 @@ export const StatusCard: React.FC<Props> = ({ status, latest }) => {
         </div>
         <span className={`badge ${isActive ? "badge-active" : ""}`}>{state}</span>
       </div>
+
+      {statusError && (
+        <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-100">
+          Gateway is temporarily unreachable ({statusError}). Commands may fail
+          until the gateway is back online.
+        </div>
+      )}
 
       <motion.div
         className="grid grid-cols-2 gap-3 text-xs md:text-sm"

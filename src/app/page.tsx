@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
+import dynamic from "next/dynamic";
 import { StatusCard } from "../components/StatusCard";
 import { HistoryTable } from "../components/HistoryTable";
 import { PromptForm } from "../components/PromptForm";
@@ -11,6 +12,19 @@ import { ActiveCommandBar } from "../components/ActiveCommandBar";
 import { motion } from "framer-motion";
 import { Activity, SatelliteDish } from "lucide-react";
 
+const LocationMapPicker = dynamic(
+  () =>
+    import("../components/LocationMapPicker").then((m) => m.LocationMapPicker),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="mt-4 flex h-56 items-center justify-center rounded-xl border border-cyan-500/20 bg-slate-950/40 text-xs text-slate-500">
+        Loading map…
+      </div>
+    ),
+  }
+);
+
 const GATEWAY_URL =
   process.env.NEXT_PUBLIC_GATEWAY_URL ?? "http://localhost:3000";
 
@@ -20,6 +34,7 @@ interface HistoryEntry extends ApiResponse {
 
 export default function Page(): JSX.Element {
   const [status, setStatus] = useState<StatusResponse | null>(null);
+  const [statusError, setStatusError] = useState<string | null>(null);
   const [latest, setLatest] = useState<ApiResponse | null>(null);
   /** Last response actually sent to server (accepted). Drives "Current active command" cards only. */
   const [lastApplied, setLastApplied] = useState<ApiResponse | null>(null);
@@ -40,10 +55,12 @@ export default function Page(): JSX.Element {
         const data = (await res.json()) as StatusResponse;
         if (active) {
           setStatus(data);
+          setStatusError(null);
         }
       } catch (e) {
         if (active) {
-          console.error(e);
+          const msg = e instanceof Error ? e.message : "unknown error";
+          setStatusError(msg);
         }
       }
     };
@@ -87,6 +104,14 @@ export default function Page(): JSX.Element {
   const handleQuickSelect = (prompt: string) => {
     setPromptValue(prompt);
     // User can edit the prompt and press "Send Prompt" to send
+  };
+
+  const handleAppendFromMap = (snippet: string) => {
+    setPromptValue((prev) => {
+      const trimmed = prev.trimEnd();
+      if (!trimmed) return snippet;
+      return `${trimmed}\n\n${snippet}`;
+    });
   };
 
   const handleAcceptTool = async () => {
@@ -195,6 +220,7 @@ export default function Page(): JSX.Element {
               <div className="mt-4">
                 <QuickActions onSelect={handleQuickSelect} disabled={loading} />
               </div>
+              <LocationMapPicker onAppendToPrompt={handleAppendFromMap} />
             </motion.div>
 
             <motion.div
@@ -219,7 +245,7 @@ export default function Page(): JSX.Element {
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.4, delay: 0.1 }}
             >
-              <StatusCard status={status} latest={latest} />
+              <StatusCard status={status} latest={latest} statusError={statusError} />
             </motion.div>
 
             {/* Tools list on desktop/tablet next to status */}
