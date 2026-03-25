@@ -51,8 +51,8 @@ export const PromptForm: React.FC<Props> = ({
         onChange={(e) => onChange(e.target.value)}
         placeholder="e.g. sweep the flooded area ahead, prioritize human detection and circle around any detected clusters"
       />
-      <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end sm:gap-3">
-        {locationPicker}
+      <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+        <div className="min-w-0">{locationPicker}</div>
         <motion.button
           whileHover={{ scale: loading ? 1 : 1.02 }}
           whileTap={{ scale: loading ? 1 : 0.98 }}
