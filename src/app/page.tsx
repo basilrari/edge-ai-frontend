@@ -103,7 +103,7 @@ export default function Page(): JSX.Element {
     setPromptValue((prev) => {
       const trimmed = prev.trimEnd();
       if (!trimmed) return snippet;
-      return `${trimmed}\n\n${snippet}`;
+      return `${trimmed} ${snippet}`;
     });
   };
 
