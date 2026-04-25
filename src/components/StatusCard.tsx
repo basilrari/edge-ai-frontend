@@ -174,6 +174,43 @@ export const StatusCard: React.FC<Props> = ({ status, latest, statusError = null
           )}
         </div>
 
+        {latest?.drone_error && (
+          <div className="rounded-xl border border-rose-500/50 bg-rose-950/40 px-3 py-2 text-[11px] text-rose-100">
+            <span className="font-semibold text-rose-200">Drone apply error: </span>
+            {latest.drone_error}
+            {latest.drone_http_status != null && (
+              <span className="ml-1 font-mono text-rose-200/90">
+                (HTTP {latest.drone_http_status}
+                {latest.drone_http_ms != null ? `, ${latest.drone_http_ms} ms` : ""})
+              </span>
+            )}
+          </div>
+        )}
+
+        {(latest?.request_id || (latest?.debug_trace && latest.debug_trace.length > 0)) && (
+          <div className="rounded-xl border border-slate-600/60 bg-slate-950/50 px-3 py-2 text-[10px] text-slate-400">
+            {latest?.request_id && (
+              <div className="mb-1 font-mono break-all">
+                <span className="text-slate-500">request_id:</span> {latest.request_id}
+              </div>
+            )}
+            {latest?.debug_trace && latest.debug_trace.length > 0 && (
+              <details className="min-w-0">
+                <summary className="cursor-pointer text-slate-300 select-none">
+                  Debug trace ({latest.debug_trace.length} steps)
+                </summary>
+                <ol className="mt-2 max-h-40 list-decimal space-y-0.5 overflow-y-auto pl-4 font-mono text-[10px] text-slate-400">
+                  {latest.debug_trace.map((line, i) => (
+                    <li key={i} className="break-all">
+                      {line}
+                    </li>
+                  ))}
+                </ol>
+              </details>
+            )}
+          </div>
+        )}
+
         {latest ? (
           <div className="mt-1 flex min-w-0 max-h-[320px] flex-col gap-3 overflow-y-auto">
             {llmSummary ? (

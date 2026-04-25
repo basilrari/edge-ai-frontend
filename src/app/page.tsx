@@ -21,6 +21,20 @@ const LocationMapPicker = dynamic(
 const GATEWAY_URL =
   process.env.NEXT_PUBLIC_GATEWAY_URL ?? "http://localhost:3000";
 
+function newRequestId(): string {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+    return crypto.randomUUID();
+  }
+  return `fe-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
+function gatewayJsonHeaders(): HeadersInit {
+  return {
+    "Content-Type": "application/json",
+    "x-request-id": newRequestId(),
+  };
+}
+
 interface HistoryEntry extends ApiResponse {
   timestamp: string;
 }
@@ -43,7 +57,9 @@ export default function Page(): JSX.Element {
 
     const fetchStatus = async () => {
       try {
-        const res = await fetch(`${GATEWAY_URL}/status`);
+        const res = await fetch(`${GATEWAY_URL}/status`, {
+          headers: { "x-request-id": newRequestId() },
+        });
         if (!res.ok) throw new Error(`status ${res.status}`);
         const data = (await res.json()) as StatusResponse;
         if (active) {
@@ -72,7 +88,7 @@ export default function Page(): JSX.Element {
     try {
       const res = await fetch(`${GATEWAY_URL}/infer`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: gatewayJsonHeaders(),
         body: JSON.stringify({ Infer: { prompt } }),
       });
       if (!res.ok) throw new Error(`infer status ${res.status}`);
@@ -114,7 +130,7 @@ export default function Page(): JSX.Element {
     try {
       const res = await fetch(`${GATEWAY_URL}/infer`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: gatewayJsonHeaders(),
         body: JSON.stringify({
           ApplyTool: { category: latest.category, tool_name: latest.tool_name },
         }),
