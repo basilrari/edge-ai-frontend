@@ -17,6 +17,8 @@ export interface ApiResponse {
   drone_http_status?: number | null;
   drone_http_ms?: number | null;
   drone_error?: string | null;
+  /** From LLM proposal; forwarded on Accept for tools that need `params`. */
+  tool_params?: Record<string, unknown> | null;
 }
 
 export interface StatusResponse {

@@ -16,11 +16,24 @@ const MODEL_TOOL_LABELS: Record<string, string> = {
 
 /** Drone movement tools – map tool_name to short display label */
 const DRONE_TOOL_LABELS: Record<string, string> = {
+  arm: "Arm",
+  disarm: "Disarm",
+  force_arm: "Force arm",
+  set_mode_auto: "Mode AUTO",
+  set_mode_guided: "Mode GUIDED",
+  takeoff: "Takeoff",
+  start_mission: "Start mission (AUTO + MISSION_START)",
+  mission_set_current: "Mission set current",
+  goto_location: "Goto location",
   move_forward: "Move forward",
   hover: "Hover",
   return_to_home: "Return to home",
   land_immediately: "Land immediately",
   circle_search: "Circle search",
+  retry_streams: "Retry streams / mission list",
+  mission_interrupt: "Mission interrupt (hold)",
+  mission_resume: "Mission resume",
+  waypoint_inject: "Waypoint inject (guided)",
 };
 
 function isDroneTool(toolName: string | null): boolean {

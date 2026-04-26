@@ -132,7 +132,15 @@ export default function Page(): JSX.Element {
         method: "POST",
         headers: gatewayJsonHeaders(),
         body: JSON.stringify({
-          ApplyTool: { category: latest.category, tool_name: latest.tool_name },
+          ApplyTool: {
+            category: latest.category,
+            tool_name: latest.tool_name,
+            ...(latest.tool_params != null &&
+            typeof latest.tool_params === "object" &&
+            !Array.isArray(latest.tool_params)
+              ? { params: latest.tool_params }
+              : {}),
+          },
         }),
       });
       if (!res.ok) throw new Error(`apply status ${res.status}`);

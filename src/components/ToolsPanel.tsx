@@ -16,7 +16,8 @@ export const ToolsPanel: React.FC = () => {
               Available tools
             </h2>
             <p className="text-[11px] text-slate-400">
-              Model tools are fully wired. Drone commands are visible but not yet integrated.
+              Model tools are perception-focused. Drone tools are sent through the gateway to
+              drone-http (MAVLink).
             </p>
           </div>
         </div>
@@ -79,16 +80,19 @@ export const ToolsPanel: React.FC = () => {
       <div className="space-y-2 pt-1 border-t border-slate-800/70">
         <div className="flex items-center gap-2 text-[11px] text-slate-400">
           <Waypoints className="h-3.5 w-3.5 text-slate-500" />
-          <span>Drone movement tools (not yet wired, coming soon):</span>
+          <span>Drone tools (ArduCopter-oriented; approve each in the UI):</span>
         </div>
         <ul className="grid gap-1 text-[11px] md:text-xs md:grid-cols-2 text-slate-400">
-          <li>move_forward &mdash; Fly forward a short distance.</li>
-          <li>hover &mdash; Hold current position and altitude.</li>
-          <li>return_to_home &mdash; Return safely to launch point.</li>
-          <li>land_immediately &mdash; Land immediately at current location.</li>
-          <li className="md:col-span-2">
-            circle_search &mdash; Circle current area for better observation.
-          </li>
+          <li>arm / disarm / force_arm</li>
+          <li>set_mode_auto / set_mode_guided / hover</li>
+          <li>takeoff (optional params altitude_m)</li>
+          <li>start_mission (AUTO + MISSION_START)</li>
+          <li>mission_set_current (params.seq)</li>
+          <li>goto_location (params lat_deg, lon_deg, alt_m relative to home)</li>
+          <li>move_forward / return_to_home / land_immediately / circle_search</li>
+          <li>mission_interrupt / mission_resume</li>
+          <li>waypoint_inject (lat_deg, lon_deg, alt_m or waypoint_text)</li>
+          <li className="md:col-span-2">retry_streams &mdash; Nudge mission list + data streams.</li>
         </ul>
       </div>
     </div>
