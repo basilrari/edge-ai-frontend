@@ -86,7 +86,7 @@ export const ToolsPanel: React.FC = () => {
           <li>arm / disarm / force_arm</li>
           <li>set_mode_auto / set_mode_guided / hover</li>
           <li>takeoff (optional params altitude_m)</li>
-          <li>start_mission — fly mission / follow waypoints already on FC (AUTO + MISSION_START)</li>
+          <li>start_mission — same as TUI &quot;m&quot;: AUTO + MISSION_START; drone-http requires mission on link + NAV_TAKEOFF item</li>
           <li>mission_set_current — set current mission item index only (params.seq); does not start the mission</li>
           <li>goto_location (params lat_deg, lon_deg, alt_m relative to home)</li>
           <li>move_forward / return_to_home / land_immediately / circle_search</li>
