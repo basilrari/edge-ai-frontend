@@ -2,7 +2,7 @@
 
 import React from "react";
 import { motion } from "framer-motion";
-import { ScanEye, Network, Brain, Share2, Waves } from "lucide-react";
+import { ScanEye, Waves, Tag } from "lucide-react";
 
 interface Props {
   /** Called when user picks a predefined prompt; fills the input so they can edit and send. */
@@ -17,28 +17,19 @@ const QUICK_PROMPTS: {
   icon: React.ComponentType<{ className?: string }>;
 }[] = [
   {
-    label: "Activate human detection (vision)",
-    prompt:
-      "activate human detection on the live camera feed in the flooded area",
+    label: "Human detection",
+    prompt: "run human detection on the live camera feed to find people",
     icon: ScanEye,
   },
   {
-    label: "Flood segmentation (vision)",
-    prompt:
-      "run flood segmentation on the current camera view and highlight flooded zones",
+    label: "Flood segmentation",
+    prompt: "run flood segmentation on the camera view and highlight flooded zones",
     icon: Waves,
   },
   {
-    label: "Behaviour analysis (vision)",
-    prompt:
-      "analyze human behaviour in the scene and flag distressed or suspicious activity",
-    icon: Brain,
-  },
-  {
-    label: "Share detections with swarm",
-    prompt:
-      "share the current detection results with the drone swarm for coordination",
-    icon: Share2,
+    label: "Flood classification",
+    prompt: "classify flood type and severity from the current camera view",
+    icon: Tag,
   },
 ];
 

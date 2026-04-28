@@ -7,11 +7,9 @@ import { Plane, Cpu, Check, X } from "lucide-react";
 
 /** Model tools (SAR perception) – map tool_name to short display label */
 const MODEL_TOOL_LABELS: Record<string, string> = {
-  activate_human_detection_yolo: "Human detection (YOLO)",
-  activate_flood_segmentation: "Flood segmentation",
-  activate_human_behaviour_analysis: "Behaviour analysis",
-  share_with_swarm: "Share with swarm",
-  activate_flood_classification: "Flood classification",
+  human_detect: "Human detect",
+  flood_seg: "Flood segmentation",
+  flood_class: "Flood classification",
 };
 
 /** Drone movement tools – map tool_name to short display label */

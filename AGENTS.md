@@ -73,7 +73,7 @@ All requests are `fetch()` from the client; no Next API routes. CORS is enabled 
 
 ## Tool names (display)
 
-- **Model tools** (SAR perception): `activate_human_detection_yolo`, `activate_flood_segmentation`, `activate_human_behaviour_analysis`, `share_with_swarm`, `activate_flood_classification`. Mapped to short labels in `ActiveCommandBar` and listed in `ToolsPanel` and `QuickActions`.
+- **Model tools** (SAR perception): `human_detect`, `flood_seg`, `flood_class`. Labels in `ActiveCommandBar`; `ToolsPanel` and `QuickActions` list the same.
 - **Drone tools** (not yet wired): `move_forward`, `hover`, `return_to_home`, `land_immediately`, `circle_search`. Listed in `ToolsPanel`; labels in `ActiveCommandBar`.
 
 Adding a new tool: add label in `ActiveCommandBar` (and optionally a quick prompt in `QuickActions` and a row in `ToolsPanel`), and ensure the gateway returns that `tool_name` from `/infer`.

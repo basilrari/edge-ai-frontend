@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { BadgeCheck, ScanEye, Brain, Share2, Waves, Info, Waypoints } from "lucide-react";
+import { BadgeCheck, ScanEye, Waves, Tag, Info, Waypoints } from "lucide-react";
 
 export const ToolsPanel: React.FC = () => {
   return (
@@ -32,45 +32,27 @@ export const ToolsPanel: React.FC = () => {
           <li className="flex items-start gap-2">
             <ScanEye className="mt-0.5 h-3.5 w-3.5 text-cyan-300" />
             <div>
-              <div className="font-semibold text-slate-100">activate_human_detection_yolo</div>
+              <div className="font-semibold text-slate-100">human_detect</div>
               <div className="text-slate-400">
-                Detect and locate humans in the current camera view.
+                Find people in the live camera feed (YOLO).
               </div>
             </div>
           </li>
           <li className="flex items-start gap-2">
             <Waves className="mt-0.5 h-3.5 w-3.5 text-cyan-300" />
             <div>
-              <div className="font-semibold text-slate-100">activate_flood_segmentation</div>
+              <div className="font-semibold text-slate-100">flood_seg</div>
               <div className="text-slate-400">
-                Segment and highlight flooded regions in the scene.
-              </div>
-            </div>
-          </li>
-          <li className="flex items-start gap-2">
-            <Brain className="mt-0.5 h-3.5 w-3.5 text-cyan-300" />
-            <div>
-              <div className="font-semibold text-slate-100">activate_human_behaviour_analysis</div>
-              <div className="text-slate-400">
-                Analyze human behaviour to flag distress or suspicious activity.
-              </div>
-            </div>
-          </li>
-          <li className="flex items-start gap-2">
-            <Share2 className="mt-0.5 h-3.5 w-3.5 text-cyan-300" />
-            <div>
-              <div className="font-semibold text-slate-100">share_with_swarm</div>
-              <div className="text-slate-400">
-                Share current detection results with the drone swarm.
+                Segment and highlight flooded regions.
               </div>
             </div>
           </li>
           <li className="flex items-start gap-2 md:col-span-2">
-            <Waves className="mt-0.5 h-3.5 w-3.5 text-cyan-300" />
+            <Tag className="mt-0.5 h-3.5 w-3.5 text-cyan-300" />
             <div>
-              <div className="font-semibold text-slate-100">activate_flood_classification</div>
+              <div className="font-semibold text-slate-100">flood_class</div>
               <div className="text-slate-400">
-                Classify type and severity of flooding in the observed area.
+                Classify flood type or severity.
               </div>
             </div>
           </li>
