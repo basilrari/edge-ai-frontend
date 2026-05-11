@@ -4,7 +4,7 @@ import L from "leaflet";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import "leaflet/dist/leaflet.css";
-import { LocateFixed, Loader2, MapPin, X } from "lucide-react";
+import { LocateFixed, Loader2, MapPin, Plane, User, X } from "lucide-react";
 
 function createMarkerIcon(): L.Icon {
   return new L.Icon({
@@ -19,52 +19,114 @@ function createMarkerIcon(): L.Icon {
   });
 }
 
+type MapFocus = "drone" | "you";
+
+interface DronePositionJson {
+  ok?: boolean;
+  lat_deg?: number;
+  lon_deg?: number;
+  alt_amsl_m?: number;
+  error?: string;
+}
+
+function newRequestId(): string {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+    return crypto.randomUUID();
+  }
+  return `map-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
 export interface LocationMapPickerProps {
   onAppendToPrompt: (snippet: string) => void;
   /** When true, only the compact control row (for use beside Send prompt). */
   inline?: boolean;
+  /** Gateway base URL (proxies `GET /drone/position` to drone-http). */
+  gatewayBaseUrl?: string;
 }
 
 export function LocationMapPicker({
   onAppendToPrompt,
   inline = false,
+  gatewayBaseUrl = process.env.NEXT_PUBLIC_GATEWAY_URL ?? "http://localhost:3000",
 }: LocationMapPickerProps): JSX.Element {
   const defaultCenter = useMemo<[number, number]>(() => [23.558, 120.473], []);
   const icon = useMemo(() => createMarkerIcon(), []);
 
-  const [position, setPosition] = useState<[number, number] | null>(null);
+  const [mapFocus, setMapFocus] = useState<MapFocus>("drone");
+  /** Waypoint the operator clicked (for “Append to prompt”). */
+  const [selection, setSelection] = useState<[number, number] | null>(null);
+  /** Vehicle position from gateway → drone-http (updated every 5s in drone mode). */
+  const [dronePosition, setDronePosition] = useState<[number, number] | null>(null);
   const [mapCenter, setMapCenter] = useState<[number, number] | null>(null);
-  const [isLoadingInitialLocation, setIsLoadingInitialLocation] = useState(true);
+  const [isLoadingInitialLocation, setIsLoadingInitialLocation] = useState(false);
   const [locationError, setLocationError] = useState<string | null>(null);
   const [mapOpen, setMapOpen] = useState(false);
   const [isLocating, setIsLocating] = useState(false);
   const [zoomLevel, setZoomLevel] = useState(16);
 
   const mapRef = useRef<L.Map | null>(null);
-  const markerRef = useRef<L.Marker | null>(null);
+  const selectionMarkerRef = useRef<L.Marker | null>(null);
+  const droneLayerRef = useRef<L.CircleMarker | null>(null);
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
 
   const MIN_ZOOM = 2;
   const MAX_ZOOM = 19;
 
-  const updateMarker = useCallback(
+  const fetchDronePosition = useCallback(async (): Promise<[number, number] | null> => {
+    try {
+      const res = await fetch(`${gatewayBaseUrl.replace(/\/$/, "")}/drone/position`, {
+        headers: { "x-request-id": newRequestId() },
+      });
+      const data = (await res.json()) as DronePositionJson;
+      if (data.ok && typeof data.lat_deg === "number" && typeof data.lon_deg === "number") {
+        return [data.lat_deg, data.lon_deg];
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  }, [gatewayBaseUrl]);
+
+  const updateSelectionMarker = useCallback(
     (next: [number, number] | null) => {
       if (!mapRef.current) return;
       if (!next) {
-        if (markerRef.current) {
-          mapRef.current.removeLayer(markerRef.current);
-          markerRef.current = null;
+        if (selectionMarkerRef.current) {
+          mapRef.current.removeLayer(selectionMarkerRef.current);
+          selectionMarkerRef.current = null;
         }
         return;
       }
-      if (!markerRef.current) {
-        markerRef.current = L.marker(next, { icon }).addTo(mapRef.current);
+      if (!selectionMarkerRef.current) {
+        selectionMarkerRef.current = L.marker(next, { icon }).addTo(mapRef.current);
       } else {
-        markerRef.current.setLatLng(next);
+        selectionMarkerRef.current.setLatLng(next);
       }
     },
     [icon]
   );
+
+  const updateDroneMarker = useCallback((next: [number, number] | null) => {
+    if (!mapRef.current) return;
+    if (!next || mapFocus !== "drone") {
+      if (droneLayerRef.current) {
+        mapRef.current.removeLayer(droneLayerRef.current);
+        droneLayerRef.current = null;
+      }
+      return;
+    }
+    if (!droneLayerRef.current) {
+      droneLayerRef.current = L.circleMarker(next, {
+        radius: 9,
+        color: "#22d3ee",
+        weight: 2,
+        fillColor: "#06b6d4",
+        fillOpacity: 0.9,
+      }).addTo(mapRef.current);
+    } else {
+      droneLayerRef.current.setLatLng(next);
+    }
+  }, [mapFocus]);
 
   const tryLocateUser = useCallback(
     (onFail?: () => void): Promise<void> =>
@@ -80,12 +142,10 @@ export function LocationMapPicker({
         navigator.geolocation.getCurrentPosition(
           (result) => {
             const next: [number, number] = [result.coords.latitude, result.coords.longitude];
-            setPosition(next);
             setMapCenter(next);
             setZoomLevel(16);
             if (mapRef.current) {
               mapRef.current.setView(next, 16, { animate: true });
-              updateMarker(next);
             }
             resolve();
           },
@@ -101,25 +161,44 @@ export function LocationMapPicker({
           }
         );
       }),
-    [updateMarker]
+    []
   );
 
+  /** When the modal opens or focus changes: set center source. */
   useEffect(() => {
-    let active = true;
+    if (!mapOpen) return;
+
+    let cancelled = false;
     setIsLoadingInitialLocation(true);
+    setLocationError(null);
+
     void (async () => {
-      await tryLocateUser(() => {
-        if (!active) return;
-        setMapCenter(defaultCenter);
-        setPosition(defaultCenter);
-        setZoomLevel(16);
-      });
-      if (active) setIsLoadingInitialLocation(false);
+      if (mapFocus === "drone") {
+        const pos = await fetchDronePosition();
+        if (cancelled) return;
+        if (pos) {
+          setDronePosition(pos);
+          setMapCenter(pos);
+          setZoomLevel(16);
+        } else {
+          setDronePosition(null);
+          setLocationError("No drone GPS yet (waiting for GLOBAL_POSITION_INT) or gateway unreachable.");
+          setMapCenter(defaultCenter);
+          setZoomLevel(12);
+        }
+      } else {
+        await tryLocateUser(() => {
+          if (cancelled) return;
+          setMapCenter(defaultCenter);
+        });
+      }
+      if (!cancelled) setIsLoadingInitialLocation(false);
     })();
+
     return () => {
-      active = false;
+      cancelled = true;
     };
-  }, [defaultCenter, tryLocateUser]);
+  }, [mapOpen, mapFocus, defaultCenter, fetchDronePosition, tryLocateUser]);
 
   useEffect(() => {
     if (!mapOpen || !mapCenter || !mapContainerRef.current) return;
@@ -139,9 +218,7 @@ export function LocationMapPicker({
 
     map.on("click", (e: L.LeafletMouseEvent) => {
       const next: [number, number] = [e.latlng.lat, e.latlng.lng];
-      setPosition(next);
-      setMapCenter(next);
-      updateMarker(next);
+      setSelection(next);
     });
 
     map.on("zoomend", () => {
@@ -149,17 +226,53 @@ export function LocationMapPicker({
     });
 
     mapRef.current = map;
-    updateMarker(position);
 
     return () => {
       map.off();
       map.remove();
       mapRef.current = null;
-      markerRef.current = null;
+      selectionMarkerRef.current = null;
+      droneLayerRef.current = null;
     };
-  }, [mapOpen, mapCenter, zoomLevel, position, updateMarker]);
+  }, [mapOpen, mapCenter, mapFocus]);
+
+  useEffect(() => {
+    if (!mapRef.current || !mapOpen) return;
+    updateSelectionMarker(selection);
+  }, [selection, mapOpen, updateSelectionMarker]);
+
+  /** Drone position: refresh every 5s only while modal is open and focus is Drone. */
+  useEffect(() => {
+    if (!mapOpen || mapFocus !== "drone") return;
+
+    const tick = () => {
+      void (async () => {
+        const pos = await fetchDronePosition();
+        if (pos) {
+          setDronePosition(pos);
+          if (mapRef.current) {
+            mapRef.current.panTo(pos, { animate: true });
+          }
+        }
+      })();
+    };
+
+    const id = setInterval(tick, 5000);
+    return () => clearInterval(id);
+  }, [mapOpen, mapFocus, fetchDronePosition]);
+
+  /** Keep drone marker in sync when map exists. */
+  useEffect(() => {
+    if (!mapRef.current || !mapOpen) return;
+    if (mapFocus === "drone" && dronePosition) {
+      updateDroneMarker(dronePosition);
+    } else {
+      updateDroneMarker(null);
+    }
+  }, [dronePosition, mapFocus, mapOpen, updateDroneMarker]);
 
   const handleLocateMe = () => {
+    if (mapFocus !== "you") return;
     if (!navigator.geolocation) {
       setLocationError("Geolocation is not supported in this browser.");
       return;
@@ -174,15 +287,15 @@ export function LocationMapPicker({
   };
 
   const handleAppend = () => {
-    if (!position) return;
-    const [lat, lon] = position;
+    if (!selection) return;
+    const [lat, lon] = selection;
     onAppendToPrompt(`{ "lat": ${lat.toFixed(6)}, "long": ${lon.toFixed(6)} }`);
     setMapOpen(false);
   };
 
   const handleClear = () => {
-    setPosition(null);
-    updateMarker(null);
+    setSelection(null);
+    updateSelectionMarker(null);
   };
 
   const mapModal =
@@ -200,21 +313,52 @@ export function LocationMapPicker({
           aria-labelledby="location-map-title"
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="flex items-center justify-between gap-3 border-b border-cyan-500/15 px-4 py-3">
+          <div className="flex flex-col gap-3 border-b border-cyan-500/15 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="min-w-0">
               <h3 id="location-map-title" className="truncate text-sm font-medium text-slate-100">
                 Select waypoint
               </h3>
-              <p className="text-[11px] text-slate-500">Click map to place/update the point.</p>
+              <p className="text-[11px] text-slate-500">
+                Click map to place a waypoint. Cyan dot = drone (updates every 5s). Pin = your selection.
+              </p>
             </div>
-            <button
-              type="button"
-              className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-cyan-500/40 bg-slate-900/70 text-cyan-200 hover:bg-slate-800"
-              onClick={() => setMapOpen(false)}
-              aria-label="Close map"
-            >
-              <X className="h-4 w-4" />
-            </button>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-[10px] uppercase tracking-wide text-slate-500">Map center</span>
+              <div className="inline-flex rounded-lg border border-cyan-500/35 bg-slate-900/80 p-0.5">
+                <button
+                  type="button"
+                  onClick={() => setMapFocus("drone")}
+                  className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium ${
+                    mapFocus === "drone"
+                      ? "bg-cyan-600 text-white shadow"
+                      : "text-slate-300 hover:bg-slate-800"
+                  }`}
+                >
+                  <Plane className="h-3.5 w-3.5" />
+                  Drone
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMapFocus("you")}
+                  className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium ${
+                    mapFocus === "you"
+                      ? "bg-cyan-600 text-white shadow"
+                      : "text-slate-300 hover:bg-slate-800"
+                  }`}
+                >
+                  <User className="h-3.5 w-3.5" />
+                  You
+                </button>
+              </div>
+              <button
+                type="button"
+                className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-cyan-500/40 bg-slate-900/70 text-cyan-200 hover:bg-slate-800"
+                onClick={() => setMapOpen(false)}
+                aria-label="Close map"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
           </div>
 
           <div className="relative">
@@ -222,23 +366,29 @@ export function LocationMapPicker({
               <div className="flex h-[70vh] min-h-[420px] flex-col items-center justify-center gap-2 text-xs text-slate-400">
                 <span className="inline-flex items-center gap-2">
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  Getting your location...
+                  {mapFocus === "drone" ? "Getting drone location…" : "Getting your location…"}
                 </span>
               </div>
             ) : (
               <div className="relative h-[70vh] min-h-[420px]">
                 <div ref={mapContainerRef} className="h-full w-full" />
 
-                <button
-                  type="button"
-                  onClick={handleLocateMe}
-                  disabled={isLocating}
-                  className="absolute right-3 top-3 z-[500] inline-flex h-10 w-10 items-center justify-center rounded-md border border-cyan-500/40 bg-slate-900/85 text-cyan-200 shadow-md transition hover:bg-slate-800 disabled:opacity-60"
-                  title="Center on my location"
-                  aria-label="Center on my location"
-                >
-                  {isLocating ? <Loader2 className="h-4 w-4 animate-spin" /> : <LocateFixed className="h-4 w-4" />}
-                </button>
+                {mapFocus === "you" && (
+                  <button
+                    type="button"
+                    onClick={handleLocateMe}
+                    disabled={isLocating}
+                    className="absolute right-3 top-3 z-[500] inline-flex h-10 w-10 items-center justify-center rounded-md border border-cyan-500/40 bg-slate-900/85 text-cyan-200 shadow-md transition hover:bg-slate-800 disabled:opacity-60"
+                    title="Center on my location"
+                    aria-label="Center on my location"
+                  >
+                    {isLocating ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <LocateFixed className="h-4 w-4" />
+                    )}
+                  </button>
+                )}
 
                 <div className="absolute bottom-3 right-3 z-[500] flex h-40 w-10 flex-col items-center rounded-md border border-cyan-500/35 bg-slate-900/85 py-3">
                   <span className="text-[10px] font-semibold text-cyan-200">+</span>
@@ -264,7 +414,7 @@ export function LocationMapPicker({
                     type="button"
                     className="outline bg-slate-900/85"
                     onClick={handleAppend}
-                    disabled={!position}
+                    disabled={!selection}
                   >
                     Append to prompt
                   </button>
@@ -272,17 +422,24 @@ export function LocationMapPicker({
                     type="button"
                     className="outline bg-slate-900/85"
                     onClick={handleClear}
-                    disabled={!position}
+                    disabled={!selection}
                   >
                     Clear point
                   </button>
                 </div>
 
-                {position && (
-                  <div className="pointer-events-none absolute bottom-3 left-1/2 z-[500] max-w-[95%] -translate-x-1/2 rounded-md border border-cyan-500/25 bg-slate-950/80 px-2.5 py-1 text-center text-[11px] font-mono text-slate-200">
-                    lat : {position[0].toFixed(6)}, long : {position[1].toFixed(6)}
-                  </div>
-                )}
+                <div className="pointer-events-none absolute bottom-3 left-1/2 z-[500] max-w-[95%] -translate-x-1/2 space-y-1 text-center">
+                  {mapFocus === "drone" && dronePosition && (
+                    <div className="rounded-md border border-cyan-500/40 bg-slate-950/90 px-2.5 py-1 text-[11px] font-mono text-cyan-100">
+                      Drone: {dronePosition[0].toFixed(6)}, {dronePosition[1].toFixed(6)} (5s refresh)
+                    </div>
+                  )}
+                  {selection && (
+                    <div className="rounded-md border border-cyan-500/25 bg-slate-950/80 px-2.5 py-1 text-[11px] font-mono text-slate-200">
+                      Waypoint: {selection[0].toFixed(6)}, {selection[1].toFixed(6)}
+                    </div>
+                  )}
+                </div>
               </div>
             )}
           </div>
@@ -305,12 +462,15 @@ export function LocationMapPicker({
     >
       <div className="flex min-w-0 items-center gap-2 text-xs text-slate-400 sm:text-sm sm:text-slate-300">
         <MapPin className="h-4 w-4 shrink-0 text-cyan-300" />
-        <p className="min-w-0 truncate">Add a location to your prompt or inject waypoints.</p>
+        <p className="min-w-0 truncate">Map centers on the drone; switch to You to use your location.</p>
       </div>
       <button
         type="button"
         className="outline w-full shrink-0 sm:w-auto"
-        onClick={() => setMapOpen(true)}
+        onClick={() => {
+          setSelection(null);
+          setMapOpen(true);
+        }}
       >
         Select on map
       </button>

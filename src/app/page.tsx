@@ -247,6 +247,7 @@ export default function Page(): JSX.Element {
                 locationPicker={
                   <LocationMapPicker
                     inline
+                    gatewayBaseUrl={gatewayUrl}
                     onAppendToPrompt={handleAppendFromMap}
                   />
                 }
