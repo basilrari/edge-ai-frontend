@@ -124,24 +124,35 @@ export default function Page(): JSX.Element {
   };
 
   const handleAcceptTool = async () => {
-    if (!latest?.category || !latest?.tool_name || latest.pending_approval !== true) return;
+    if (latest?.pending_approval !== true) return;
+
+    const seq = latest.tools;
+    const useSequence = seq != null && seq.length > 1;
+
+    if (!useSequence && (!latest.category || !latest.tool_name)) return;
+
     setApplying(true);
     setError(null);
     try {
+      const body =
+        useSequence && seq != null
+          ? { ApplyToolSequence: { tools: seq } }
+          : {
+              ApplyTool: {
+                category: latest.category,
+                tool_name: latest.tool_name,
+                ...(latest.tool_params != null &&
+                typeof latest.tool_params === "object" &&
+                !Array.isArray(latest.tool_params)
+                  ? { params: latest.tool_params }
+                  : {}),
+              },
+            };
+
       const res = await fetch(`${GATEWAY_URL}/infer`, {
         method: "POST",
         headers: gatewayJsonHeaders(),
-        body: JSON.stringify({
-          ApplyTool: {
-            category: latest.category,
-            tool_name: latest.tool_name,
-            ...(latest.tool_params != null &&
-            typeof latest.tool_params === "object" &&
-            !Array.isArray(latest.tool_params)
-              ? { params: latest.tool_params }
-              : {}),
-          },
-        }),
+        body: JSON.stringify(body),
       });
       if (!res.ok) throw new Error(`apply status ${res.status}`);
       const data = (await res.json()) as ApiResponse;
@@ -162,7 +173,7 @@ export default function Page(): JSX.Element {
 
   const handleRejectTool = () => {
     if (!latest) return;
-    setLatest({ ...latest, pending_approval: false });
+    setLatest({ ...latest, pending_approval: false, tools: null });
   };
 
   const gatewayUrl = useMemo(() => GATEWAY_URL, []);

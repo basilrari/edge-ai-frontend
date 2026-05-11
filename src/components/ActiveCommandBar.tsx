@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useMemo } from "react";
-import type { ApiResponse } from "./types";
+import type { ApiResponse, ToolCall } from "./types";
 import { motion } from "framer-motion";
 import { Plane, Cpu, Check, X } from "lucide-react";
 
@@ -50,12 +50,18 @@ function droneDisplay(toolName: string | null): string {
   return DRONE_TOOL_LABELS[toolName] ?? toolName.replace(/_/g, " ");
 }
 
+function stepLabel(step: ToolCall): string {
+  if (step.category === "drone") return droneDisplay(step.name);
+  if (step.category === "model") return modelDisplay(step.name);
+  return step.name.replace(/_/g, " ");
+}
+
 interface Props {
   /** Last response actually sent to server. Drives Drone/Model cards only (updated after Accept). */
   confirmed: ApiResponse | null;
   /** Latest infer response; used for pending proposal UI and Accept/Reject. */
   latest: ApiResponse | null;
-  /** Called when user accepts the proposed tool; frontend should call gateway ApplyTool. */
+  /** Called when user accepts the proposed tool or sequence; calls gateway `ApplyTool` or `ApplyToolSequence`. */
   onAccept?: () => void;
   /** Called when user rejects the proposal. */
   onReject?: () => void;
@@ -111,13 +117,22 @@ export const ActiveCommandBar: React.FC<Props> = ({
   const { showApprove: pending, proposedLabel: proposed } = useMemo(() => {
     const category = latest?.category ?? null;
     const tool = latest?.tool_name ?? null;
-    const pending = latest?.pending_approval === true;
-    if (!pending || category === "none") return { showApprove: false, proposedLabel: null as string | null };
+    const tools = latest?.tools;
+    const isPending = latest?.pending_approval === true;
+    if (!isPending || category === "none") {
+      return { showApprove: false, proposedLabel: null as string | null };
+    }
+
+    if (tools != null && tools.length > 1) {
+      const label = tools.map((t, i) => `${i + 1}. ${stepLabel(t)}`).join(" → ");
+      return { showApprove: true, proposedLabel: label };
+    }
+
     const isDrone = isDroneTool(tool);
     const hasModel = tool != null && !isDrone;
     const label = isDrone ? droneDisplay(tool) : hasModel ? modelDisplay(tool) : null;
     return { showApprove: true, proposedLabel: label };
-  }, [latest?.category, latest?.tool_name, latest?.pending_approval]);
+  }, [latest?.category, latest?.tool_name, latest?.tools, latest?.pending_approval]);
 
   const messageLine = !pending && noneReason != null
     ? `No tool selected — ${noneReason}`
@@ -136,7 +151,7 @@ export const ActiveCommandBar: React.FC<Props> = ({
         {/* Message line: fixed height so layout doesn't shift when content changes */}
         <div className="min-h-[1.25rem] text-xs leading-5">
           {messageLine != null && (
-            <p className={pending ? "text-amber-400/90" : "text-slate-400"}>
+            <p className={`${pending ? "text-amber-400/90" : "text-slate-400"} ${pending && proposed != null && proposed.includes("→") ? "whitespace-normal break-words" : ""}`}>
               {messageLine}
             </p>
           )}

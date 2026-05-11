@@ -1,10 +1,17 @@
+/** One LLM / gateway tool step (matches gateway `ToolCall`). */
+export interface ToolCall {
+  category: string;
+  name: string;
+  params?: Record<string, unknown> | null;
+}
+
 export interface ApiResponse {
   state: string;
   model: string | null;
   override_active: boolean;
   category: string | null;
   tool_name: string | null;
-  /** When true, response is a proposal; show Accept/Reject. Only ApplyTool sends to Python. */
+  /** When true, response is a proposal; show Accept/Reject. Apply with `ApplyTool` or `ApplyToolSequence`. */
   pending_approval: boolean;
   llm_response: string;
   action_taken: string;
@@ -17,8 +24,10 @@ export interface ApiResponse {
   drone_http_status?: number | null;
   drone_http_ms?: number | null;
   drone_error?: string | null;
-  /** From LLM proposal; forwarded on Accept for tools that need `params`. */
+  /** From LLM proposal; forwarded on Accept for tools that need `params` (first step). */
   tool_params?: Record<string, unknown> | null;
+  /** Multi-step proposal (2+ tasks); send `ApplyToolSequence` on Accept. */
+  tools?: ToolCall[] | null;
 }
 
 export interface StatusResponse {

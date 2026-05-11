@@ -44,20 +44,20 @@ frontend/src/
 
 ## Types (`components/types.ts`)
 
-- **ApiResponse**: Matches POST `/infer` response — `state`, `model`, `override_active`, `category`, `tool_name`, `pending_approval`, `llm_response`, `action_taken`, `latency_ms`, `llm_latency_ms`.
+- **ApiResponse**: Matches POST `/infer` response — `state`, `model`, `override_active`, `category`, `tool_name`, `pending_approval`, optional **`tools`** (multi-step proposal), `tool_params`, `llm_response`, `action_taken`, `latency_ms`, `llm_latency_ms`, plus optional debug/drone fields.
 - **StatusResponse**: Matches GET `/status` — `state`, `model`, `override_active`, `latency_ms`, `llm_latency_ms`, `memory_estimate_mb`. (Frontend does not use `active_command` from status; it derives “current command” from the last **accepted** response in `ActiveCommandBar`, not from status.)
 
-History entries are `ApiResponse & { timestamp: string }` (ISO string), kept in state in `page.tsx` and capped at 10. Only one entry per outcome: added when Infer returns without `pending_approval`, or when the user Accepts (ApplyTool response); proposals are not added to avoid double entries.
+History entries are `ApiResponse & { timestamp: string }` (ISO string), kept in state in `page.tsx` and capped at 10. Only one entry per outcome: added when Infer returns without `pending_approval`, or when the user Accepts (**ApplyTool** or **ApplyToolSequence** response); proposals are not added to avoid double entries.
 
 ---
 
 ## Data flow
 
 1. **Status**: `page.tsx` polls `GET ${GATEWAY_URL}/status` every 10s and passes `status: StatusResponse | null` to `StatusCard`.
-2. **Infer**: User submits via `PromptForm` or `QuickActions` → `page.tsx` calls `POST ${GATEWAY_URL}/infer` with `{"Infer": {"prompt": "..."}}` → response stored as `latest`. If `pending_approval: true`, the frontend does not update the "Current active command" cards or add to history; it shows "Proposed: &lt;tool&gt;" and Accept/Reject. If `pending_approval` is false, response is stored as `lastApplied`, cards update, and one entry is prepended to `history`.
-3. **Active command (cards)**: `ActiveCommandBar` receives `confirmed` (`lastApplied`) and `latest`. The Drone and Model cards are driven only by `confirmed` (last response sent to server after Accept). They update only after Accept or when Infer returns without a tool. When there is a pending proposal, a line "Proposed: &lt;tool label&gt; — Approve to send to server" and Accept/Reject buttons are shown.
-4. **Accept**: User clicks Accept → `POST /infer` with `{"ApplyTool": {"category", "tool_name"}}` → response stored as `latest` and `lastApplied`, one entry prepended to `history`.
-5. **Reject**: User clicks Reject → `latest` is updated with `pending_approval: false`; cards and history unchanged.
+2. **Infer**: User submits via `PromptForm` or `QuickActions` → `page.tsx` calls `POST ${GATEWAY_URL}/infer` with `{"Infer": {"prompt": "..."}}` → response stored as `latest`. If `pending_approval: true`, the frontend does not update the "Current active command" cards or add to history; it shows "Proposed: …" (multi-step: numbered chain) and Accept/Reject. If `pending_approval` is false, response is stored as `lastApplied`, cards update, and one entry is prepended to `history`.
+3. **Active command (cards)**: `ActiveCommandBar` receives `confirmed` (`lastApplied`) and `latest`. The Drone and Model cards are driven only by `confirmed` (last response sent to server after Accept). They update only after Accept or when Infer returns without a tool. When there is a pending proposal, a line "Proposed: … — Approve to send to server" and Accept/Reject buttons are shown.
+4. **Accept**: User clicks Accept → `POST /infer` with **`ApplyToolSequence`** and the proposed `tools` array when `tools` has 2+ steps; otherwise **`ApplyTool`** with `category`, `tool_name`, optional `params` → response stored as `latest` and `lastApplied`, one entry prepended to `history`.
+5. **Reject**: User clicks Reject → `latest` is updated with `pending_approval: false` and `tools` cleared; cards and history unchanged.
 6. **StatusCard** receives both `status` and `latest`; it shows gateway metrics and "last tool decision" (category, tool_name, action_taken) and parses `llm_response` as JSON for an optional LLM run summary (tokens, timings, etc.).
 
 ---
@@ -65,7 +65,7 @@ History entries are `ApiResponse & { timestamp: string }` (ISO string), kept in 
 ## API calls (from frontend)
 
 - **GET /status**: No body. Returns `StatusResponse`. Used only for polling.
-- **POST /infer**: Body `{"Infer": {"prompt": "<string>"}}` (returns proposal with optional `pending_approval: true`) or `{"ApplyTool": {"category": "<string>", "tool_name": "<string>"}}` (after user accepts). Returns `ApiResponse`. Override/ClearOverride are not used by the current UI (see `gateway/AGENTS.md`).
+- **POST /infer**: Body `{"Infer": {"prompt": "<string>"}}` (returns proposal with optional `pending_approval: true` and optional `tools` for multi-step), `{"ApplyTool": {...}}` after Accept (single step), or `{"ApplyToolSequence": {"tools": [...]}}` after Accept (multi-step). Returns `ApiResponse`. Override/ClearOverride are not used by the current UI (see `gateway/AGENTS.md`).
 
 All requests are `fetch()` from the client; no Next API routes. CORS is enabled on the gateway for all origins.
 
@@ -74,7 +74,7 @@ All requests are `fetch()` from the client; no Next API routes. CORS is enabled 
 ## Tool names (display)
 
 - **Model tools** (SAR perception): `human_detect`, `flood_seg`, `flood_class`. Labels in `ActiveCommandBar`; `ToolsPanel` and `QuickActions` list the same.
-- **Drone tools** (not yet wired): `move_forward`, `hover`, `return_to_home`, `land_immediately`, `circle_search`. Listed in `ToolsPanel`; labels in `ActiveCommandBar`.
+- **Drone tools**: many MAVLink-backed tools (e.g. `goto_location`, `takeoff`, `circle_search`, `return_to_home`, …). Listed in `ToolsPanel`; labels in `ActiveCommandBar`. Applied via gateway → `drone-http`.
 
 Adding a new tool: add label in `ActiveCommandBar` (and optionally a quick prompt in `QuickActions` and a row in `ToolsPanel`), and ensure the gateway returns that `tool_name` from `/infer`.
 
