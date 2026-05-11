@@ -29,6 +29,24 @@ interface DronePositionJson {
   error?: string;
 }
 
+/** Hide operator marker when within this horizontal distance of the drone (meters). */
+const CLOSE_OPERATOR_DRONE_M = 40;
+
+/** Great-circle distance on the WGS84 sphere (meters). */
+function haversineMeters(a: [number, number], b: [number, number]): number {
+  const R = 6371000;
+  const [lat1, lon1] = a;
+  const [lat2, lon2] = b;
+  const p1 = (lat1 * Math.PI) / 180;
+  const p2 = (lat2 * Math.PI) / 180;
+  const dq = ((lat2 - lat1) * Math.PI) / 180;
+  const dl = ((lon2 - lon1) * Math.PI) / 180;
+  const x =
+    Math.sin(dq / 2) * Math.sin(dq / 2) +
+    Math.cos(p1) * Math.cos(p2) * Math.sin(dl / 2) * Math.sin(dl / 2);
+  return 2 * R * Math.atan2(Math.sqrt(x), Math.sqrt(Math.max(0, 1 - x)));
+}
+
 function newRequestId(): string {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
     return crypto.randomUUID();
@@ -51,12 +69,38 @@ export function LocationMapPicker({
 }: LocationMapPickerProps): JSX.Element {
   const defaultCenter = useMemo<[number, number]>(() => [23.558, 120.473], []);
   const icon = useMemo(() => createMarkerIcon(), []);
+  const droneMapIcon = useMemo(
+    () =>
+      L.divIcon({
+        className: "leaflet-marker-icon leaflet-zoom-animated !border-0 !bg-transparent",
+        html: `<div style="width:26px;height:26px;border-radius:9999px;background:rgba(6,182,212,0.95);border:2px solid #a5f3fc;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 4px rgba(0,0,0,0.35)" title="Drone">
+  <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#0f172a" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"><path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/></svg>
+</div>`,
+        iconSize: [26, 26],
+        iconAnchor: [13, 13],
+      }),
+    []
+  );
+  const operatorMapIcon = useMemo(
+    () =>
+      L.divIcon({
+        className: "leaflet-marker-icon leaflet-zoom-animated !border-0 !bg-transparent",
+        html: `<div style="width:26px;height:26px;border-radius:9999px;background:rgba(245,158,11,0.95);border:2px solid #fde68a;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 4px rgba(0,0,0,0.35)" title="Operator">
+  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#0f172a" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+</div>`,
+        iconSize: [26, 26],
+        iconAnchor: [13, 13],
+      }),
+    []
+  );
 
   const [mapFocus, setMapFocus] = useState<MapFocus>("drone");
   /** Waypoint the operator clicked (for “Append to prompt”). */
   const [selection, setSelection] = useState<[number, number] | null>(null);
   /** Vehicle position from gateway → drone-http (updated every 5s in drone mode). */
   const [dronePosition, setDronePosition] = useState<[number, number] | null>(null);
+  /** Browser geolocation (one shot when map opens). */
+  const [operatorPosition, setOperatorPosition] = useState<[number, number] | null>(null);
   const [mapCenter, setMapCenter] = useState<[number, number] | null>(null);
   const [isLoadingInitialLocation, setIsLoadingInitialLocation] = useState(false);
   const [locationError, setLocationError] = useState<string | null>(null);
@@ -66,8 +110,15 @@ export function LocationMapPicker({
 
   const mapRef = useRef<L.Map | null>(null);
   const selectionMarkerRef = useRef<L.Marker | null>(null);
-  const droneLayerRef = useRef<L.CircleMarker | null>(null);
+  const droneMarkerRef = useRef<L.Marker | null>(null);
+  const operatorMarkerRef = useRef<L.Marker | null>(null);
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
+
+  const showOperatorMarker = useMemo(() => {
+    if (!operatorPosition) return false;
+    if (!dronePosition) return true;
+    return haversineMeters(dronePosition, operatorPosition) > CLOSE_OPERATOR_DRONE_M;
+  }, [dronePosition, operatorPosition]);
 
   const MIN_ZOOM = 2;
   const MAX_ZOOM = 19;
@@ -106,28 +157,6 @@ export function LocationMapPicker({
     [icon]
   );
 
-  const updateDroneMarker = useCallback((next: [number, number] | null) => {
-    if (!mapRef.current) return;
-    if (!next || mapFocus !== "drone") {
-      if (droneLayerRef.current) {
-        mapRef.current.removeLayer(droneLayerRef.current);
-        droneLayerRef.current = null;
-      }
-      return;
-    }
-    if (!droneLayerRef.current) {
-      droneLayerRef.current = L.circleMarker(next, {
-        radius: 9,
-        color: "#22d3ee",
-        weight: 2,
-        fillColor: "#06b6d4",
-        fillOpacity: 0.9,
-      }).addTo(mapRef.current);
-    } else {
-      droneLayerRef.current.setLatLng(next);
-    }
-  }, [mapFocus]);
-
   const tryLocateUser = useCallback(
     (onFail?: () => void): Promise<void> =>
       new Promise((resolve) => {
@@ -142,6 +171,7 @@ export function LocationMapPicker({
         navigator.geolocation.getCurrentPosition(
           (result) => {
             const next: [number, number] = [result.coords.latitude, result.coords.longitude];
+            setOperatorPosition(next);
             setMapCenter(next);
             setZoomLevel(16);
             if (mapRef.current) {
@@ -200,6 +230,22 @@ export function LocationMapPicker({
     };
   }, [mapOpen, mapFocus, defaultCenter, fetchDronePosition, tryLocateUser]);
 
+  /** Operator position for map icon (best-effort; hidden when ~co-located with drone). */
+  useEffect(() => {
+    if (!mapOpen) {
+      setOperatorPosition(null);
+      return;
+    }
+    if (!navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition(
+      (result) => {
+        setOperatorPosition([result.coords.latitude, result.coords.longitude]);
+      },
+      () => {},
+      { enableHighAccuracy: true, timeout: 12000, maximumAge: 60000 }
+    );
+  }, [mapOpen]);
+
   useEffect(() => {
     if (!mapOpen || !mapCenter || !mapContainerRef.current) return;
 
@@ -232,7 +278,8 @@ export function LocationMapPicker({
       map.remove();
       mapRef.current = null;
       selectionMarkerRef.current = null;
-      droneLayerRef.current = null;
+      droneMarkerRef.current = null;
+      operatorMarkerRef.current = null;
     };
   }, [mapOpen, mapCenter, mapFocus]);
 
@@ -241,35 +288,57 @@ export function LocationMapPicker({
     updateSelectionMarker(selection);
   }, [selection, mapOpen, updateSelectionMarker]);
 
-  /** Drone position: refresh every 5s only while modal is open and focus is Drone. */
+  /** Drone position: refresh every 5s while modal is open; follow drone when map center is Drone. */
   useEffect(() => {
-    if (!mapOpen || mapFocus !== "drone") return;
+    if (!mapOpen) return;
 
     const tick = () => {
       void (async () => {
         const pos = await fetchDronePosition();
         if (pos) {
           setDronePosition(pos);
-          if (mapRef.current) {
+          if (mapRef.current && mapFocus === "drone") {
             mapRef.current.panTo(pos, { animate: true });
           }
         }
       })();
     };
 
+    tick();
     const id = setInterval(tick, 5000);
     return () => clearInterval(id);
   }, [mapOpen, mapFocus, fetchDronePosition]);
 
-  /** Keep drone marker in sync when map exists. */
+  /** Drone / operator entity markers (pin selection is separate). */
   useEffect(() => {
     if (!mapRef.current || !mapOpen) return;
-    if (mapFocus === "drone" && dronePosition) {
-      updateDroneMarker(dronePosition);
-    } else {
-      updateDroneMarker(null);
+
+    if (dronePosition) {
+      if (!droneMarkerRef.current) {
+        droneMarkerRef.current = L.marker(dronePosition, { icon: droneMapIcon }).addTo(
+          mapRef.current
+        );
+      } else {
+        droneMarkerRef.current.setLatLng(dronePosition);
+      }
+    } else if (droneMarkerRef.current) {
+      mapRef.current.removeLayer(droneMarkerRef.current);
+      droneMarkerRef.current = null;
     }
-  }, [dronePosition, mapFocus, mapOpen, updateDroneMarker]);
+
+    if (showOperatorMarker && operatorPosition) {
+      if (!operatorMarkerRef.current) {
+        operatorMarkerRef.current = L.marker(operatorPosition, { icon: operatorMapIcon }).addTo(
+          mapRef.current
+        );
+      } else {
+        operatorMarkerRef.current.setLatLng(operatorPosition);
+      }
+    } else if (operatorMarkerRef.current) {
+      mapRef.current.removeLayer(operatorMarkerRef.current);
+      operatorMarkerRef.current = null;
+    }
+  }, [dronePosition, operatorPosition, showOperatorMarker, mapOpen, droneMapIcon, operatorMapIcon]);
 
   const handleLocateMe = () => {
     if (mapFocus !== "you") return;
@@ -319,7 +388,8 @@ export function LocationMapPicker({
                 Select waypoint
               </h3>
               <p className="text-[11px] text-slate-500">
-                Click map to place a waypoint. Cyan dot = drone (updates every 5s). Pin = your selection.
+                Click map to place a waypoint. Plane = drone, person = operator (hidden if within ~40m of
+                drone). Pin = your selection.
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
@@ -462,7 +532,9 @@ export function LocationMapPicker({
     >
       <div className="flex min-w-0 items-center gap-2 text-xs text-slate-400 sm:text-sm sm:text-slate-300">
         <MapPin className="h-4 w-4 shrink-0 text-cyan-300" />
-        <p className="min-w-0 truncate">Map centers on the drone; switch to You to use your location.</p>
+        <p className="min-w-0 truncate">
+          Map shows drone and (when separated) operator icons; pin is your clicked waypoint.
+        </p>
       </div>
       <button
         type="button"
