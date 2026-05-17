@@ -68,6 +68,13 @@ export const HistoryTable: React.FC<Props> = ({ entries }) => {
                   label="LLM latency"
                   value={`${entry.llm_latency_ms} ms`}
                 />
+                {entry.llm_tool_json ? (
+                  <Field
+                    label="Tool JSON"
+                    value={entry.llm_tool_json}
+                    className="col-span-2 truncate font-mono text-[10px]"
+                  />
+                ) : null}
               </div>
             </motion.div>
           ))
@@ -88,6 +95,7 @@ export const HistoryTable: React.FC<Props> = ({ entries }) => {
                 <th className="px-3 py-2">Action</th>
                 <th className="px-3 py-2">Latency</th>
                 <th className="px-3 py-2">LLM</th>
+                <th className="px-3 py-2">Tool JSON</th>
               </tr>
             </thead>
             <motion.tbody
@@ -101,7 +109,7 @@ export const HistoryTable: React.FC<Props> = ({ entries }) => {
               {entries.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={8}
+                    colSpan={9}
                     className="px-3 py-4 text-center text-slate-500"
                   >
                     No inferences yet.
@@ -128,6 +136,12 @@ export const HistoryTable: React.FC<Props> = ({ entries }) => {
                     </td>
                     <td className="px-3 py-2 font-mono">{entry.latency_ms} ms</td>
                     <td className="px-3 py-2 font-mono">{entry.llm_latency_ms} ms</td>
+                    <td
+                      className="max-w-[200px] truncate px-3 py-2 font-mono text-[10px] text-cyan-200/80"
+                      title={entry.llm_tool_json ?? ""}
+                    >
+                      {entry.llm_tool_json ?? "—"}
+                    </td>
                   </motion.tr>
                 ))
               )}

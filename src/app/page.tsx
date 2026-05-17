@@ -43,15 +43,11 @@ export default function Page(): JSX.Element {
   const [status, setStatus] = useState<StatusResponse | null>(null);
   const [statusError, setStatusError] = useState<string | null>(null);
   const [latest, setLatest] = useState<ApiResponse | null>(null);
-  /** Last response actually sent to server (accepted). Drives "Current active command" cards only. */
-  const [lastApplied, setLastApplied] = useState<ApiResponse | null>(null);
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [loading, setLoading] = useState(false);
-  const [applying, setApplying] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [promptValue, setPromptValue] = useState("");
 
-  // Poll /status every 10s
   useEffect(() => {
     let active = true;
 
@@ -94,14 +90,11 @@ export default function Page(): JSX.Element {
       if (!res.ok) throw new Error(`infer status ${res.status}`);
       const data = (await res.json()) as ApiResponse;
       setLatest(data);
-      if (!data.pending_approval) {
-        setLastApplied(data);
-        const entry: HistoryEntry = {
-          ...data,
-          timestamp: new Date().toISOString(),
-        };
-        setHistory((prev) => [entry, ...prev].slice(0, 10));
-      }
+      const entry: HistoryEntry = {
+        ...data,
+        timestamp: new Date().toISOString(),
+      };
+      setHistory((prev) => [entry, ...prev].slice(0, 10));
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : "unknown error";
       setError(msg);
@@ -112,7 +105,6 @@ export default function Page(): JSX.Element {
 
   const handleQuickSelect = (prompt: string) => {
     setPromptValue(prompt);
-    // User can edit the prompt and press "Send Prompt" to send
   };
 
   const handleAppendFromMap = (snippet: string) => {
@@ -123,113 +115,50 @@ export default function Page(): JSX.Element {
     });
   };
 
-  const handleAcceptTool = async () => {
-    if (latest?.pending_approval !== true) return;
-
-    const seq = latest.tools;
-    const useSequence = seq != null && seq.length > 1;
-
-    if (!useSequence && (!latest.category || !latest.tool_name)) return;
-
-    setApplying(true);
-    setError(null);
-    try {
-      const body =
-        useSequence && seq != null
-          ? { ApplyToolSequence: { tools: seq } }
-          : {
-              ApplyTool: {
-                category: latest.category,
-                tool_name: latest.tool_name,
-                ...(latest.tool_params != null &&
-                typeof latest.tool_params === "object" &&
-                !Array.isArray(latest.tool_params)
-                  ? { params: latest.tool_params }
-                  : {}),
-              },
-            };
-
-      const res = await fetch(`${GATEWAY_URL}/infer`, {
-        method: "POST",
-        headers: gatewayJsonHeaders(),
-        body: JSON.stringify(body),
-      });
-      if (!res.ok) throw new Error(`apply status ${res.status}`);
-      const data = (await res.json()) as ApiResponse;
-      setLatest(data);
-      setLastApplied(data);
-      const entry: HistoryEntry = {
-        ...data,
-        timestamp: new Date().toISOString(),
-      };
-      setHistory((prev) => [entry, ...prev].slice(0, 10));
-    } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : "unknown error";
-      setError(msg);
-    } finally {
-      setApplying(false);
-    }
-  };
-
-  const handleRejectTool = () => {
-    if (!latest) return;
-    setLatest({ ...latest, pending_approval: false, tools: null });
-  };
-
   const gatewayUrl = useMemo(() => GATEWAY_URL, []);
 
   return (
     <main className="relative min-h-screen overflow-x-hidden overflow-y-auto bg-background text-foreground px-4 py-5 pb-8 sm:px-5 md:px-6 md:py-6 safe-area-padding">
-      {/* subtle vignette */}
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(56,189,248,0.18),_transparent_55%),radial-gradient(circle_at_bottom,_rgba(16,185,129,0.16),_transparent_55%)] opacity-70" />
+      <motion.div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(56,189,248,0.18),_transparent_55%),radial-gradient(circle_at_bottom,_rgba(16,185,129,0.16),_transparent_55%)] opacity-70" />
 
-      <div className="relative mx-auto flex w-full max-w-6xl min-w-0 flex-col gap-4 sm:gap-5">
-        {/* Top navbar */}
+      <motion.div className="relative mx-auto flex w-full max-w-6xl min-w-0 flex-col gap-4 sm:gap-5">
         <motion.header
           className="flex min-w-0 flex-col gap-3 md:flex-row md:items-center md:justify-between"
           initial={{ opacity: 0, y: -14 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.35 }}
         >
-          <div className="flex min-w-0 flex-shrink-0 items-center gap-3">
+          <motion.div className="flex min-w-0 flex-shrink-0 items-center gap-3">
             <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-2xl bg-cyan-500/20 text-cyan-300 shadow-lg shadow-cyan-500/40">
               <Activity className="h-5 w-5" />
             </div>
-            <div className="min-w-0">
+            <motion.div className="min-w-0">
               <h1 className="truncate text-xl font-semibold tracking-tight md:text-2xl">
                 Jetson SAR Gateway
               </h1>
               <p className="text-xs text-slate-400 md:text-sm">
                 Mission control for search-and-rescue drone intelligence.
               </p>
-            </div>
-          </div>
+            </motion.div>
+          </motion.div>
           <div className="flex min-w-0 flex-shrink items-center justify-between gap-3 text-[11px] md:text-xs text-slate-400">
-            <div className="flex min-w-0 max-w-full items-center gap-2 rounded-full border border-cyan-500/40 bg-slate-900/70 px-3 py-1.5">
+            <motion.div className="flex min-w-0 max-w-full items-center gap-2 rounded-full border border-cyan-500/40 bg-slate-900/70 px-3 py-1.5">
               <SatelliteDish className="h-3.5 w-3.5 flex-shrink-0 text-cyan-300" />
               <span className="hidden shrink-0 sm:inline">Connected to</span>
               <span className="min-w-0 truncate font-mono text-[10px] md:text-[11px]">
                 {gatewayUrl}
               </span>
-            </div>
+            </motion.div>
           </div>
         </motion.header>
 
-        {/* Current active command: Drone + Model */}
         <div className="min-w-0 space-y-2">
           <h2 className="text-xs font-medium uppercase tracking-wider text-slate-500">
             Current active command
           </h2>
-          <ActiveCommandBar
-            confirmed={lastApplied}
-            latest={latest}
-            onAccept={handleAcceptTool}
-            onReject={handleRejectTool}
-            applying={applying}
-          />
+          <ActiveCommandBar latest={latest} />
         </div>
 
-        {/* Main content */}
         <div className="grid min-w-0 grid-cols-1 gap-4 md:grid-cols-3">
           <div className="min-w-0 space-y-4 md:col-span-2">
             <motion.div
@@ -266,10 +195,9 @@ export default function Page(): JSX.Element {
               <HistoryTable entries={history} />
             </motion.div>
 
-            {/* Tools list for mobile (stacked under history) */}
-            <div className="md:hidden">
+            <motion.div className="md:hidden">
               <ToolsPanel />
-            </div>
+            </motion.div>
           </div>
 
           <div className="min-w-0 space-y-4">
@@ -282,13 +210,12 @@ export default function Page(): JSX.Element {
               <StatusCard status={status} latest={latest} statusError={statusError} />
             </motion.div>
 
-            {/* Tools list on desktop/tablet next to status */}
-            <div className="hidden md:block">
+            <motion.div className="hidden md:block">
               <ToolsPanel />
-            </div>
+            </motion.div>
           </div>
         </div>
-      </div>
+      </motion.div>
     </main>
   );
 }

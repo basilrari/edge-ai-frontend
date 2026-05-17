@@ -42,6 +42,16 @@ export const StatusCard: React.FC<Props> = ({ status, latest, statusError = null
   const isActive = state === "ACTIVE" || state === "OVERRIDE_ACTIVE";
 
   const rawText = latest?.llm_response ?? "";
+  const toolJsonRaw = latest?.llm_tool_json ?? "";
+
+  const formattedToolJson = useMemo(() => {
+    if (!toolJsonRaw) return "";
+    try {
+      return JSON.stringify(JSON.parse(toolJsonRaw), null, 2);
+    } catch {
+      return toolJsonRaw;
+    }
+  }, [toolJsonRaw]);
 
   const llmSummary: LlmSummary | null = useMemo(() => {
     if (!rawText) return null;
@@ -276,9 +286,18 @@ export const StatusCard: React.FC<Props> = ({ status, latest, statusError = null
               </p>
             )}
 
+            {formattedToolJson ? (
+              <div className="min-w-0 flex-shrink-0 space-y-1">
+                <div className="text-xs font-medium text-cyan-200/90">LLM tool JSON</div>
+                <pre className="max-h-48 min-w-0 overflow-auto rounded-xl border border-cyan-500/30 bg-slate-950/90 p-2 font-mono text-[11px] leading-relaxed text-cyan-100/90 whitespace-pre-wrap break-all">
+                  {formattedToolJson}
+                </pre>
+              </div>
+            ) : null}
+
             <div className="min-w-0 flex-shrink-0 space-y-1">
               <div className="flex min-w-0 items-center justify-between gap-2 text-xs text-slate-400">
-                <span className="truncate">Raw LLM payload</span>
+                <span className="truncate">Raw LLM API response</span>
                 <button
                   type="button"
                   className="outline shrink-0"

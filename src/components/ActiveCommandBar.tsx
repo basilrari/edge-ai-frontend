@@ -1,18 +1,16 @@
 "use client";
 
 import React, { useMemo } from "react";
-import type { ApiResponse, ToolCall } from "./types";
+import type { ApiResponse } from "./types";
 import { motion } from "framer-motion";
-import { Plane, Cpu, Check, X } from "lucide-react";
+import { Plane, Cpu } from "lucide-react";
 
-/** Model tools (SAR perception) – map tool_name to short display label */
 const MODEL_TOOL_LABELS: Record<string, string> = {
   human_detect: "Human detect",
   flood_seg: "Flood segmentation",
   flood_class: "Flood classification",
 };
 
-/** Drone movement tools – map tool_name to short display label */
 const DRONE_TOOL_LABELS: Record<string, string> = {
   arm: "Arm",
   disarm: "Disarm",
@@ -39,7 +37,6 @@ function isDroneTool(toolName: string | null): boolean {
   return toolName in DRONE_TOOL_LABELS;
 }
 
-/** Model slot shows a tool when it's a known model tool or any unknown (assumed model) tool. */
 function modelDisplay(toolName: string | null): string {
   if (!toolName) return "Normal sequential flow";
   return MODEL_TOOL_LABELS[toolName] ?? toolName.replace(/_/g, " ");
@@ -50,29 +47,8 @@ function droneDisplay(toolName: string | null): string {
   return DRONE_TOOL_LABELS[toolName] ?? toolName.replace(/_/g, " ");
 }
 
-function stepLabel(step: ToolCall): string {
-  if (step.category === "drone") return droneDisplay(step.name);
-  if (step.category === "model") return modelDisplay(step.name);
-  return step.name.replace(/_/g, " ");
-}
-
-interface Props {
-  /** Last response actually sent to server. Drives Drone/Model cards only (updated after Accept). */
-  confirmed: ApiResponse | null;
-  /** Latest infer response; used for pending proposal UI and Accept/Reject. */
-  latest: ApiResponse | null;
-  /** Called when user accepts the proposed tool or sequence; calls gateway `ApplyTool` or `ApplyToolSequence`. */
-  onAccept?: () => void;
-  /** Called when user rejects the proposal. */
-  onReject?: () => void;
-  /** True while ApplyTool request is in flight. */
-  applying?: boolean;
-}
-
-/** When category is "none", human-readable reason for no tool */
 const NONE_REASON_LABELS: Record<string, string> = {
   ambiguous_request: "Ambiguous request",
-  greeting_only: "Greeting only",
   informational_request: "Informational request",
   unsafe_or_invalid: "Unsafe or invalid",
 };
@@ -82,24 +58,46 @@ function noneReasonDisplay(name: string | null): string {
   return NONE_REASON_LABELS[name] ?? name.replace(/_/g, " ");
 }
 
-export const ActiveCommandBar: React.FC<Props> = ({
-  confirmed,
-  latest,
-  onAccept,
-  onReject,
-  applying = false,
-}) => {
-  const { droneLabel, modelLabel, droneActive, modelActive, noneReason } = useMemo(() => {
-    const cat = confirmed?.category ?? null;
-    const tool = confirmed?.tool_name ?? null;
+interface Props {
+  latest: ApiResponse | null;
+}
 
-    if (!confirmed || cat === "none") {
+export const ActiveCommandBar: React.FC<Props> = ({ latest }) => {
+  const { droneLabel, modelLabel, droneActive, modelActive, messageLine } = useMemo(() => {
+    const cat = latest?.category ?? null;
+    const tool = latest?.tool_name ?? null;
+    const tools = latest?.tools;
+
+    if (!latest || cat === "none") {
       return {
         droneLabel: "Autonomous mode",
         modelLabel: "Normal sequential flow",
         droneActive: false,
         modelActive: false,
-        noneReason: noneReasonDisplay(tool),
+        messageLine: `No tool selected — ${noneReasonDisplay(tool)}`,
+      };
+    }
+
+    if (tools != null && tools.length > 1) {
+      const seq = tools
+        .map((t, i) => {
+          const label =
+            t.category === "drone"
+              ? droneDisplay(t.name)
+              : t.category === "model"
+                ? modelDisplay(t.name)
+                : t.name;
+          return `${i + 1}. ${label}`;
+        })
+        .join(" → ");
+      const last = tools[tools.length - 1];
+      const isDrone = isDroneTool(last.name);
+      return {
+        droneLabel: isDrone ? droneDisplay(last.name) : "Autonomous mode",
+        modelLabel: !isDrone ? modelDisplay(last.name) : "Normal sequential flow",
+        droneActive: isDrone,
+        modelActive: !isDrone,
+        messageLine: `Applied sequence: ${seq}`,
       };
     }
 
@@ -110,35 +108,11 @@ export const ActiveCommandBar: React.FC<Props> = ({
       modelLabel: hasModelTool ? modelDisplay(tool) : "Normal sequential flow",
       droneActive: isDrone,
       modelActive: hasModelTool,
-      noneReason: null as string | null,
+      messageLine: latest.action_taken
+        ? `Last action: ${latest.action_taken}`
+        : null,
     };
-  }, [confirmed?.category, confirmed?.tool_name]);
-
-  const { showApprove: pending, proposedLabel: proposed } = useMemo(() => {
-    const category = latest?.category ?? null;
-    const tool = latest?.tool_name ?? null;
-    const tools = latest?.tools;
-    const isPending = latest?.pending_approval === true;
-    if (!isPending || category === "none") {
-      return { showApprove: false, proposedLabel: null as string | null };
-    }
-
-    if (tools != null && tools.length > 1) {
-      const label = tools.map((t, i) => `${i + 1}. ${stepLabel(t)}`).join(" → ");
-      return { showApprove: true, proposedLabel: label };
-    }
-
-    const isDrone = isDroneTool(tool);
-    const hasModel = tool != null && !isDrone;
-    const label = isDrone ? droneDisplay(tool) : hasModel ? modelDisplay(tool) : null;
-    return { showApprove: true, proposedLabel: label };
-  }, [latest?.category, latest?.tool_name, latest?.tools, latest?.pending_approval]);
-
-  const messageLine = !pending && noneReason != null
-    ? `No tool selected — ${noneReason}`
-    : pending && proposed
-      ? `Proposed: ${proposed} — Approve to send to server`
-      : null;
+  }, [latest]);
 
   return (
     <motion.section
@@ -147,17 +121,13 @@ export const ActiveCommandBar: React.FC<Props> = ({
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
     >
-      <div className="flex min-w-0 flex-col gap-3">
-        {/* Message line: fixed height so layout doesn't shift when content changes */}
+      <motion.div className="flex min-w-0 flex-col gap-3">
         <div className="min-h-[1.25rem] text-xs leading-5">
           {messageLine != null && (
-            <p className={`${pending ? "text-amber-400/90" : "text-slate-400"} ${pending && proposed != null && proposed.includes("→") ? "whitespace-normal break-words" : ""}`}>
-              {messageLine}
-            </p>
+            <p className="text-slate-400 break-words">{messageLine}</p>
           )}
         </div>
 
-        {/* Drone + Model cards */}
         <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
           <div className="flex min-w-0 flex-col gap-1.5 rounded-xl border border-cyan-500/25 bg-slate-900/50 px-4 py-3 backdrop-blur-sm">
             <div className="flex items-center gap-2 text-[11px] font-medium uppercase tracking-wider text-slate-400">
@@ -184,31 +154,7 @@ export const ActiveCommandBar: React.FC<Props> = ({
             </p>
           </div>
         </div>
-
-        {/* Approval actions: single block with consistent padding so it doesn't disrupt layout */}
-        {pending && onAccept && onReject && (
-          <div className="flex flex-wrap items-center gap-2 rounded-xl border border-amber-500/20 bg-slate-900/40 px-3 py-2.5">
-            <button
-              type="button"
-              onClick={onAccept}
-              disabled={applying}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white shadow hover:bg-emerald-500 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-emerald-400/50"
-            >
-              <Check className="h-4 w-4 shrink-0" />
-              Accept
-            </button>
-            <button
-              type="button"
-              onClick={onReject}
-              disabled={applying}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-500 bg-slate-800/80 px-3 py-1.5 text-sm font-medium text-slate-200 hover:bg-slate-700 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-slate-400/50"
-            >
-              <X className="h-4 w-4 shrink-0" />
-              Reject
-            </button>
-          </div>
-        )}
-      </div>
+      </motion.div>
     </motion.section>
   );
 };

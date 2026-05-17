@@ -11,7 +11,7 @@ export interface ApiResponse {
   override_active: boolean;
   category: string | null;
   tool_name: string | null;
-  /** When true, response is a proposal; show Accept/Reject. Apply with `ApplyTool` or `ApplyToolSequence`. */
+  /** Legacy; gateway auto-applies tools after infer (always false for new clients). */
   pending_approval: boolean;
   llm_response: string;
   action_taken: string;
@@ -26,8 +26,10 @@ export interface ApiResponse {
   drone_error?: string | null;
   /** From LLM proposal; forwarded on Accept for tools that need `params` (first step). */
   tool_params?: Record<string, unknown> | null;
-  /** Multi-step proposal (2+ tasks); send `ApplyToolSequence` on Accept. */
+  /** Tasks the LLM returned (applied immediately by the gateway). */
   tools?: ToolCall[] | null;
+  /** Parsed tool JSON from the LLM (tasks or legacy single-object shape). */
+  llm_tool_json?: string | null;
 }
 
 export interface StatusResponse {
