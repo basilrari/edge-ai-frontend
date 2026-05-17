@@ -65,15 +65,22 @@ export const ToolsPanel: React.FC = () => {
           <span>Drone tools (ArduCopter-oriented; approve each in the UI):</span>
         </div>
         <ul className="grid gap-1 text-[11px] md:text-xs md:grid-cols-2 text-slate-400">
-          <li>arm / disarm / force_arm</li>
+          <li className="md:col-span-2">
+            arm — GUIDED then arm (pair with takeoff; no separate set_mode_guided for launch)
+          </li>
+          <li>disarm / force_arm</li>
           <li>set_mode_auto / set_mode_guided / hover</li>
-          <li>takeoff (optional params altitude_m)</li>
+          <li>
+            takeoff — NAV_TAKEOFF only; use after arm. Omit altitude_m to use current height above home
+          </li>
           <li>start_mission — same as TUI &quot;m&quot;: AUTO + MISSION_START; drone-http requires mission on link + NAV_TAKEOFF item</li>
           <li>mission_set_current — set current mission item index only (params.seq); does not start the mission</li>
-          <li>goto_location (params lat_deg, lon_deg, alt_m relative to home)</li>
+          <li>
+            goto_location — DO_REPOSITION (lat_deg, lon_deg, alt_m relative to home); no automatic takeoff
+          </li>
           <li>move_forward / return_to_home / land_immediately / circle_search</li>
           <li>mission_interrupt / mission_resume</li>
-          <li>waypoint_inject (lat_deg, lon_deg, alt_m or waypoint_text)</li>
+          <li>waypoint_inject — guided goto; same coords as goto or waypoint_text; no auto takeoff</li>
           <li className="md:col-span-2">retry_streams &mdash; Nudge mission list + data streams.</li>
         </ul>
       </div>
