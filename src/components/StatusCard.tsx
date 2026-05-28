@@ -1,14 +1,8 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useMemo } from "react";
 import type { ApiResponse, StatusResponse } from "./types";
-import { motion } from "framer-motion";
-import {
-  Activity,
-  Cpu,
-  MemoryStick,
-  Copy,
-} from "lucide-react";
+import { Clock } from "lucide-react";
 
 interface Props {
   status: StatusResponse | null;
@@ -16,332 +10,71 @@ interface Props {
   statusError?: string | null;
 }
 
-interface LlmSummary {
-  modelName?: string;
-  finishReason?: string;
-  totalTokens?: number;
-  promptTokens?: number;
-  completionTokens?: number;
-  predictedMs?: number;
-  perTokenMs?: number;
-  timeToFirstMs?: number;
-  tokensPerSecond?: number;
+function extractLlmOutput(raw: string): string {
+  if (!raw?.trim()) return "";
+  try {
+    const parsed = JSON.parse(raw) as {
+      choices?: Array<{ message?: { content?: string }; text?: string }>;
+    };
+    const content = parsed.choices?.[0]?.message?.content ?? parsed.choices?.[0]?.text;
+    if (typeof content === "string" && content.trim()) return content.trim();
+  } catch {
+    /* use raw */
+  }
+  return raw.trim();
 }
 
-export const StatusCard: React.FC<Props> = ({ status, latest, statusError = null }) => {
-  const [copied, setCopied] = useState(false);
+export const StatusCard: React.FC<Props> = ({
+  status,
+  latest,
+  statusError = null,
+}) => {
+  const latencyMs = latest?.latency_ms ?? status?.latency_ms ?? 0;
+  const llmLatencyMs = latest?.llm_latency_ms ?? status?.llm_latency_ms ?? 0;
 
-  const state = latest?.state ?? status?.state ?? "UNKNOWN";
-  const model = latest?.model ?? status?.model ?? null;
-  const overrideActive =
-    latest?.override_active ?? status?.override_active ?? false;
-  const latency = latest?.latency_ms ?? status?.latency_ms ?? 0;
-  const llmLatency = latest?.llm_latency_ms ?? status?.llm_latency_ms ?? 0;
-  const memoryMb = status?.memory_estimate_mb ?? null;
-
-  const isActive = state === "ACTIVE" || state === "OVERRIDE_ACTIVE";
-
-  const rawText = latest?.llm_response ?? "";
-  const toolJsonRaw = latest?.llm_tool_json ?? "";
-
-  const formattedToolJson = useMemo(() => {
-    if (!toolJsonRaw) return "";
-    try {
-      return JSON.stringify(JSON.parse(toolJsonRaw), null, 2);
-    } catch {
-      return toolJsonRaw;
-    }
-  }, [toolJsonRaw]);
-
-  const llmSummary: LlmSummary | null = useMemo(() => {
-    if (!rawText) return null;
-    try {
-      const parsed = JSON.parse(rawText) as any;
-      const usage = parsed.usage ?? {};
-      const timings = parsed.timings ?? {};
-      const choice =
-        Array.isArray(parsed.choices) && parsed.choices[0]
-          ? parsed.choices[0]
-          : undefined;
-
-      const timeToFirstMs =
-        timings.time_to_first_token_ms ??
-        timings.timeToFirstTokenMs ??
-        timings.first_token_ms;
-
-      const predictedMs: number | undefined = timings.predicted_ms;
-      const perTokenMs: number | undefined = timings.predicted_per_token_ms;
-
-      let tokensPerSecond: number | undefined = timings.predicted_per_second;
-      if (tokensPerSecond == null && typeof perTokenMs === "number" && perTokenMs > 0) {
-        tokensPerSecond = 1000 / perTokenMs;
-      }
-
-      return {
-        modelName: parsed.model ?? parsed.id,
-        finishReason: choice?.finish_reason,
-        totalTokens: usage.total_tokens,
-        promptTokens: usage.prompt_tokens,
-        completionTokens: usage.completion_tokens,
-        predictedMs,
-        perTokenMs,
-        timeToFirstMs,
-        tokensPerSecond,
-      };
-    } catch {
-      return null;
-    }
-  }, [rawText]);
-
-  const handleCopy = async () => {
-    if (!rawText) return;
-    try {
-      await navigator.clipboard.writeText(rawText);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1200);
-    } catch {
-      setCopied(false);
-    }
-  };
-
-  const humanFinishReason = useMemo(() => {
-    if (!llmSummary?.finishReason) return undefined;
-    if (llmSummary.finishReason === "stop") return "Completed normally";
-    if (llmSummary.finishReason === "length")
-      return "Stopped early due to token limit";
-    return llmSummary.finishReason;
-  }, [llmSummary?.finishReason]);
+  const output = useMemo(
+    () => extractLlmOutput(latest?.llm_response ?? ""),
+    [latest?.llm_response]
+  );
 
   return (
-    <motion.div
-      className="space-y-4"
-      initial={{ opacity: 0, y: 18 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.35 }}
-    >
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-cyan-500/15 text-cyan-300">
-            <Activity className="h-4 w-4" />
-          </div>
-          <div>
-            <h2 className="text-base font-semibold tracking-tight">
-              Gateway Status
-            </h2>
-            <p className="text-xs text-slate-400">Live SAR orchestration</p>
-          </div>
-        </div>
-        <span className={`badge ${isActive ? "badge-active" : ""}`}>{state}</span>
+    <div className="space-y-3">
+      <div className="flex items-center gap-2">
+        <Clock className="h-4 w-4 text-cyan-400" />
+        <h2 className="text-sm font-semibold">Last inference</h2>
       </div>
 
       {statusError && (
-        <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-100">
-          Gateway is temporarily unreachable ({statusError}). Commands may fail
-          until the gateway is back online.
-        </div>
+        <p className="text-xs text-amber-200">Gateway unreachable ({statusError})</p>
       )}
 
-      <motion.div
-        className="grid grid-cols-2 gap-3 text-xs md:text-sm"
-        initial="hidden"
-        animate="show"
-        variants={{
-          hidden: {},
-          show: {
-            transition: { staggerChildren: 0.05 },
-          },
-        }}
-      >
-        <Metric label="Model" value={model ?? "none"} icon={Cpu} />
-        <Metric
-          label="Override"
-          value={overrideActive ? "ACTIVE" : "inactive"}
-        />
-        <Metric label="Gateway latency" value={`${latency} ms`} />
-        <Metric label="LLM latency" value={`${llmLatency} ms`} />
-        {memoryMb !== null && (
-          <Metric
-            label="Memory"
-            value={`${memoryMb.toFixed(2)} MB`}
-            icon={MemoryStick}
-          />
-        )}
-      </motion.div>
-
-      <div className="min-w-0 space-y-3">
-        <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <h3 className="text-sm font-medium text-slate-200">
-            Last tool decision
-          </h3>
-          {latest && (
-            <div className="flex min-w-0 flex-wrap items-center gap-2 text-[11px]">
-              <span className="badge shrink-0">
-                category: {latest.category ?? "n/a"}
-              </span>
-              <span className="badge shrink-0">tool: {latest.tool_name ?? "n/a"}</span>
-              <span className="badge max-w-full truncate" title={String(latest.action_taken)}>action: {latest.action_taken}</span>
-            </div>
-          )}
+      <div className="grid grid-cols-2 gap-2 text-xs">
+        <div className="rounded-lg border border-slate-700/60 bg-slate-950/70 px-3 py-2">
+          <div className="text-[10px] text-slate-500">Total time</div>
+          <div className="font-mono text-slate-100">{latencyMs} ms</div>
         </div>
-
-        {latest?.drone_error && (
-          <div className="rounded-xl border border-rose-500/50 bg-rose-950/40 px-3 py-2 text-[11px] text-rose-100">
-            <span className="font-semibold text-rose-200">Drone apply error: </span>
-            {latest.drone_error}
-            {latest.drone_http_status != null && (
-              <span className="ml-1 font-mono text-rose-200/90">
-                (HTTP {latest.drone_http_status}
-                {latest.drone_http_ms != null ? `, ${latest.drone_http_ms} ms` : ""})
-              </span>
-            )}
-          </div>
-        )}
-
-        {(latest?.request_id || (latest?.debug_trace && latest.debug_trace.length > 0)) && (
-          <div className="rounded-xl border border-slate-600/60 bg-slate-950/50 px-3 py-2 text-[10px] text-slate-400">
-            {latest?.request_id && (
-              <div className="mb-1 font-mono break-all">
-                <span className="text-slate-500">request_id:</span> {latest.request_id}
-              </div>
-            )}
-            {latest?.debug_trace && latest.debug_trace.length > 0 && (
-              <details className="min-w-0">
-                <summary className="cursor-pointer text-slate-300 select-none">
-                  Debug trace ({latest.debug_trace.length} steps)
-                </summary>
-                <ol className="mt-2 max-h-40 list-decimal space-y-0.5 overflow-y-auto pl-4 font-mono text-[10px] text-slate-400">
-                  {latest.debug_trace.map((line, i) => (
-                    <li key={i} className="break-all">
-                      {line}
-                    </li>
-                  ))}
-                </ol>
-              </details>
-            )}
-          </div>
-        )}
-
-        {latest ? (
-          <div className="mt-1 flex min-w-0 max-h-[320px] flex-col gap-3 overflow-y-auto">
-            {llmSummary ? (
-              <div className="min-w-0 flex-shrink-0 rounded-xl border border-slate-700/70 bg-slate-900/70 px-3 py-2 text-[11px] leading-relaxed text-slate-200 overflow-hidden">
-                <div className="text-[11px] font-semibold text-slate-300 mb-1">
-                  LLM run summary
-                </div>
-                <ul className="space-y-1 list-disc list-inside">
-                  {llmSummary.modelName && (
-                    <li>
-                      <span className="font-semibold">Model</span>: {llmSummary.modelName}
-                    </li>
-                  )}
-                  {humanFinishReason && (
-                    <li>
-                      <span className="font-semibold">Completion</span>: {humanFinishReason}
-                    </li>
-                  )}
-                  {typeof llmSummary.totalTokens === "number" && (
-                    <li>
-                      <span className="font-semibold">Tokens</span>: total {llmSummary.totalTokens}
-                      {typeof llmSummary.promptTokens === "number" &&
-                        typeof llmSummary.completionTokens === "number" && (
-                          <>
-                            {" "}(input {llmSummary.promptTokens}, output {llmSummary.completionTokens})
-                          </>
-                        )}
-                    </li>
-                  )}
-                  {typeof llmSummary.predictedMs === "number" && (
-                    <li>
-                      <span className="font-semibold">Model compute time</span>: ~
-                      {llmSummary.predictedMs.toFixed(1)} ms
-                      {typeof llmSummary.perTokenMs === "number" && (
-                        <>
-                          {" "}(
-                          {llmSummary.perTokenMs.toFixed(1)} ms / token)
-                        </>
-                      )}
-                    </li>
-                  )}
-                  {typeof llmSummary.timeToFirstMs === "number" && (
-                    <li>
-                      <span className="font-semibold">Time to first token</span>: ~
-                      {llmSummary.timeToFirstMs.toFixed(1)} ms
-                    </li>
-                  )}
-                  {typeof llmSummary.tokensPerSecond === "number" && (
-                    <li>
-                      <span className="font-semibold">Throughput</span>: ~
-                      {llmSummary.tokensPerSecond.toFixed(1)} tokens / second
-                    </li>
-                  )}
-                  <li>
-                    <span className="font-semibold">End-to-end latency</span>: {latency} ms
-                    {llmLatency > 0 && ` (LLM portion ~${llmLatency} ms)`}
-                  </li>
-                </ul>
-              </div>
-            ) : (
-              <p className="text-[11px] text-slate-400">
-                LLM metrics not available for this response.
-              </p>
-            )}
-
-            {formattedToolJson ? (
-              <div className="min-w-0 flex-shrink-0 space-y-1">
-                <div className="text-xs font-medium text-cyan-200/90">LLM tool JSON</div>
-                <pre className="max-h-48 min-w-0 overflow-auto rounded-xl border border-cyan-500/30 bg-slate-950/90 p-2 font-mono text-[11px] leading-relaxed text-cyan-100/90 whitespace-pre-wrap break-all">
-                  {formattedToolJson}
-                </pre>
-              </div>
-            ) : null}
-
-            <div className="min-w-0 flex-shrink-0 space-y-1">
-              <div className="flex min-w-0 items-center justify-between gap-2 text-xs text-slate-400">
-                <span className="truncate">Raw LLM API response</span>
-                <button
-                  type="button"
-                  className="outline shrink-0"
-                  onClick={handleCopy}
-                >
-                  <Copy className="h-3 w-3" />
-                  {copied ? "Copied" : "Copy"}
-                </button>
-              </div>
-              <div className="max-h-40 min-w-0 overflow-auto rounded-xl border border-slate-700/70 bg-slate-950/80 p-2">
-                <code className="llm-response text-[11px] md:text-[11px]">
-                  {rawText || "(empty)"}
-                </code>
-              </div>
-            </div>
-          </div>
-        ) : (
-          <p className="text-xs text-slate-500">No inferences yet.</p>
-        )}
+        <div className="rounded-lg border border-slate-700/60 bg-slate-950/70 px-3 py-2">
+          <div className="text-[10px] text-slate-500">LLM time</div>
+          <div className="font-mono text-slate-100">{llmLatencyMs} ms</div>
+        </div>
       </div>
-    </motion.div>
-  );
-};
 
-interface MetricProps {
-  label: string;
-  value: string;
-  icon?: React.ComponentType<{ className?: string }>;
-}
+      {latest?.drone_error && (
+        <p className="rounded-lg border border-rose-500/40 bg-rose-950/40 px-3 py-2 text-xs text-rose-100">
+          Drone: {latest.drone_error}
+        </p>
+      )}
 
-const Metric: React.FC<MetricProps> = ({ label, value, icon: Icon }) => {
-  return (
-    <motion.div
-      variants={{
-        hidden: { opacity: 0, y: 6 },
-        show: { opacity: 1, y: 0 },
-      }}
-      className="rounded-xl border border-slate-700/50 bg-slate-900/70 px-3 py-2"
-    >
-      <div className="flex items-center justify-between gap-2 text-[11px] text-slate-400">
-        <span>{label}</span>
-        {Icon && <Icon className="h-3.5 w-3.5 text-slate-500" />}
-      </div>
-      <div className="mt-1 font-mono text-xs text-slate-100">{value}</div>
-    </motion.div>
+      {latest ? (
+        <div className="space-y-1">
+          <div className="text-[11px] text-slate-400">LLM output</div>
+          <pre className="max-h-48 overflow-auto rounded-xl border border-slate-700/70 bg-slate-950/90 p-2 font-mono text-[11px] leading-relaxed text-slate-200 whitespace-pre-wrap break-words">
+            {output || "(empty)"}
+          </pre>
+        </div>
+      ) : (
+        <p className="text-xs text-slate-500">Send a prompt to see timing and output.</p>
+      )}
+    </div>
   );
 };
