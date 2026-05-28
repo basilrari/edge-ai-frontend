@@ -2,8 +2,8 @@ import "./globals.css";
 import React from "react";
 
 export const metadata = {
-  title: "Jetson LLM Gateway Dashboard",
-  description: "Live telemetry for the Jetson LLM Gateway",
+  title: "SAR Mission Control",
+  description: "LLM-powered search and rescue drone mission control dashboard",
 };
 
 export const viewport = {
