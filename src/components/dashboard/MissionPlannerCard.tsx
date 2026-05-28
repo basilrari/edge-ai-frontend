@@ -62,6 +62,7 @@ export function MissionPlannerCard({
   const [clearDroneSuccess, setClearDroneSuccess] = useState<string | null>(
     null
   );
+  const [confirmClearDrone, setConfirmClearDrone] = useState(false);
 
   const previewMission = useMemo(
     () => draftToPreviewMission(draft),
@@ -100,7 +101,13 @@ export function MissionPlannerCard({
     onDraftChange({ ...draft, waypoints: [] });
   };
 
-  const handleClearDroneMission = async () => {
+  const handleClearDroneMissionClick = () => {
+    setClearDroneError(null);
+    setClearDroneSuccess(null);
+    setConfirmClearDrone(true);
+  };
+
+  const handleClearDroneMissionConfirm = async () => {
     setClearingDrone(true);
     setClearDroneError(null);
     setClearDroneSuccess(null);
@@ -114,6 +121,7 @@ export function MissionPlannerCard({
       );
     } finally {
       setClearingDrone(false);
+      setConfirmClearDrone(false);
     }
   };
 
@@ -282,9 +290,10 @@ export function MissionPlannerCard({
             droneLegs.length === 0 ||
             droneMissionLoading ||
             uploading ||
-            clearingDrone
+            clearingDrone ||
+            confirmClearDrone
           }
-          onClick={handleClearDroneMission}
+          onClick={handleClearDroneMissionClick}
         >
           {clearingDrone ? (
             <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -294,6 +303,40 @@ export function MissionPlannerCard({
           Clear drone mission
         </button>
       </div>
+
+      {confirmClearDrone ? (
+        <div className="rounded-md border border-rose-500/40 bg-rose-950/25 p-3">
+          <p className="text-xs text-rose-100">
+            Clear the mission on the flight controller? This cannot be undone
+            from the dashboard.
+          </p>
+          <div className="mt-2 flex gap-2">
+            <button
+              type="button"
+              className="flex-1 rounded-md border border-dash-border bg-dash-bg/60 px-3 py-1.5 text-xs text-dash-text transition hover:border-dash-border/80"
+              disabled={clearingDrone}
+              onClick={() => setConfirmClearDrone(false)}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="flex flex-1 items-center justify-center gap-1 rounded-md border border-rose-500/50 bg-rose-950/40 px-3 py-1.5 text-xs font-medium text-rose-200 transition hover:bg-rose-950/60 disabled:cursor-not-allowed disabled:opacity-40"
+              disabled={clearingDrone}
+              onClick={handleClearDroneMissionConfirm}
+            >
+              {clearingDrone ? (
+                <>
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  Clearing…
+                </>
+              ) : (
+                "Yes, clear mission"
+              )}
+            </button>
+          </div>
+        </div>
+      ) : null}
 
       <button
         type="button"
