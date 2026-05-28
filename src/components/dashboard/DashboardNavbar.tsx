@@ -5,15 +5,23 @@ import {
   Battery,
   ChevronLeft,
   Settings,
-  Signal,
 } from "lucide-react";
+import { fmtLinkKind } from "../../lib/format";
 
 interface Props {
   droneOnline: boolean;
-  batteryPercent: number;
+  batteryPercent: number | null;
+  linkKind?: string | null;
+  linkDisplay?: string | null;
 }
 
-export function DashboardNavbar({ droneOnline, batteryPercent }: Props): JSX.Element {
+export function DashboardNavbar({
+  droneOnline,
+  batteryPercent,
+  linkKind,
+  linkDisplay,
+}: Props): JSX.Element {
+  const linkLabel = fmtLinkKind(linkKind);
   return (
     <header className="flex h-12 shrink-0 items-center justify-between border-b border-dash-border bg-dash-panel px-5">
       <button
@@ -25,16 +33,25 @@ export function DashboardNavbar({ droneOnline, batteryPercent }: Props): JSX.Ele
       </button>
 
       <div className="flex items-center gap-4 text-xs text-dash-text">
-        <span className="flex items-center gap-1.5">
-          <span
-            className={`h-2 w-2 rounded-full ${droneOnline ? "bg-dash-accent" : "bg-red-500"}`}
-          />
-          {droneOnline ? "Drone Online" : "Drone Offline"}
+        <span className="flex items-center gap-2">
+          <span className="flex items-center gap-1.5">
+            <span
+              className={`h-2 w-2 rounded-full ${droneOnline ? "bg-dash-accent" : "bg-red-500"}`}
+            />
+            {droneOnline ? "Drone Online" : "Drone Offline"}
+          </span>
+          {linkLabel ? (
+            <span
+              className="rounded-full border border-dash-border bg-dash-bg px-2 py-0.5 font-medium text-dash-muted"
+              title={linkDisplay ?? undefined}
+            >
+              {linkLabel}
+            </span>
+          ) : null}
         </span>
-        <Signal className="h-4 w-4 text-dash-accent" aria-hidden />
         <span className="flex items-center gap-1 font-medium">
           <Battery className="h-4 w-4 text-dash-accent" />
-          {batteryPercent}%
+          {batteryPercent != null ? `${batteryPercent}%` : "—"}
         </span>
         <button
           type="button"

@@ -1,92 +1,64 @@
 "use client";
 
 import React from "react";
-import { MoreHorizontal } from "lucide-react";
 import clsx from "clsx";
 import { DashboardCard } from "./DashboardCard";
-import type { MissionLog } from "../../types/drone";
+import type { FlightLogEntry } from "../types";
 
 interface Props {
-  logs: MissionLog[];
+  entries: FlightLogEntry[];
+  loading: boolean;
+  error: string | null;
 }
 
-function StatusBadge({ status }: { status: MissionLog["status"] }): JSX.Element {
-  const styles: Record<MissionLog["status"], string> = {
-    Success: "bg-dash-accent/15 text-dash-accent ring-dash-accent/30",
-    Partial: "bg-dash-amber/15 text-dash-amber ring-dash-amber/30",
-    Failed: "bg-red-500/15 text-red-400 ring-red-500/30",
-    "In Progress": "bg-dash-blue/15 text-dash-blue ring-dash-blue/30",
-  };
-  return (
-    <span
-      className={clsx(
-        "inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium ring-1",
-        styles[status]
-      )}
-    >
-      {status}
-    </span>
-  );
+function levelClass(level: string): string {
+  switch (level) {
+    case "warn":
+      return "text-dash-amber";
+    case "error":
+      return "text-red-400";
+    default:
+      return "text-dash-accent";
+  }
 }
 
-export function FlightLogsCard({ logs }: Props): JSX.Element {
+export function FlightLogsCard({ entries, loading, error }: Props): JSX.Element {
+  const rows = [...entries].reverse();
+
   return (
-    <DashboardCard
-      title="Flight Logs"
-      className="h-full"
-      headerRight={
-        <button type="button" className="text-[11px] text-dash-accent hover:text-[#86efac]">
-          View All
-        </button>
-      }
-      bodyClassName="overflow-hidden p-0"
-    >
-      <div className="max-h-[320px] overflow-y-auto">
-        <table className="w-full text-left text-[11px]">
-          <thead className="sticky top-0 bg-dash-panel text-[9px] uppercase tracking-wider text-dash-muted">
-            <tr className="border-b border-dash-border">
-              <th className="px-3 py-2 font-semibold">Mission Name</th>
-              <th className="hidden px-2 py-2 font-semibold xl:table-cell">Date</th>
-              <th className="px-2 py-2 font-semibold">Duration</th>
-              <th className="hidden px-2 py-2 font-semibold lg:table-cell">Distance</th>
-              <th className="px-2 py-2 font-semibold">Status</th>
-              <th className="w-8 px-1 py-2" aria-hidden />
-            </tr>
-          </thead>
-          <tbody>
-            {logs.map((row) => (
-              <tr
-                key={row.id}
-                className="border-b border-dash-border/60 hover:bg-dash-bg/50"
-              >
-                <td className="max-w-[100px] truncate px-3 py-2 font-medium text-dash-text">
-                  {row.missionName}
-                </td>
-                <td className="hidden whitespace-nowrap px-2 py-2 text-dash-muted xl:table-cell">
-                  {row.date}
-                </td>
-                <td className="whitespace-nowrap px-2 py-2 text-dash-muted">
-                  {row.duration}
-                </td>
-                <td className="hidden whitespace-nowrap px-2 py-2 text-dash-muted lg:table-cell">
-                  {row.distance ?? "—"}
-                </td>
-                <td className="px-2 py-2">
-                  <StatusBadge status={row.status} />
-                </td>
-                <td className="px-1 py-2">
-                  <button
-                    type="button"
-                    className="rounded p-1 text-dash-muted hover:bg-dash-border hover:text-dash-text"
-                    aria-label="Row actions"
-                  >
-                    <MoreHorizontal className="h-3.5 w-3.5" />
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+    <DashboardCard title="Flight Logs" bodyClassName="overflow-hidden p-0">
+      <div className="max-h-[280px] overflow-y-auto">
+        {error && (
+          <p className="border-b border-dash-border px-3 py-2 text-xs text-dash-amber">
+            {error}
+          </p>
+        )}
+        {loading && rows.length === 0 && (
+          <p className="px-3 py-4 text-center text-xs text-dash-muted">
+            Loading drone logs…
+          </p>
+        )}
+        {!loading && rows.length === 0 && !error && (
+          <p className="px-3 py-4 text-center text-xs text-dash-muted">
+            No events yet. Logs appear when drone-http connects and runs commands.
+          </p>
+        )}
+        <ul className="divide-y divide-dash-border/60 font-mono text-[11px]">
+          {rows.map((e, i) => (
+            <li
+              key={`${e.ts_ms}-${i}`}
+              className="flex gap-2 px-3 py-2 hover:bg-dash-bg/40"
+            >
+              <span className="shrink-0 text-dash-muted">
+                {new Date(e.ts_ms).toLocaleTimeString()}
+              </span>
+              <span className={clsx("shrink-0 uppercase", levelClass(e.level))}>
+                [{e.level}]
+              </span>
+              <span className="min-w-0 break-words text-dash-text">{e.message}</span>
+            </li>
+          ))}
+        </ul>
       </div>
     </DashboardCard>
   );

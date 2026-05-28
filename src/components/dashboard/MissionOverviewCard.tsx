@@ -9,6 +9,7 @@ interface Props {
   legs: MissionLeg[];
   stats: MissionOverviewStats;
   loading?: boolean;
+  error?: string | null;
 }
 
 function LegDot({ status }: { status: MissionLeg["status"] }): JSX.Element {
@@ -31,11 +32,9 @@ function LegDot({ status }: { status: MissionLeg["status"] }): JSX.Element {
 function StatBlock({
   label,
   value,
-  sub,
 }: {
   label: string;
   value: string;
-  sub?: string;
 }): JSX.Element {
   return (
     <div className="rounded-md border border-dash-border bg-dash-bg/60 px-3 py-2">
@@ -45,7 +44,6 @@ function StatBlock({
       <p className="mt-0.5 text-lg font-semibold tabular-nums text-dash-text">
         {value}
       </p>
-      {sub ? <p className="text-[10px] text-dash-muted">{sub}</p> : null}
     </div>
   );
 }
@@ -54,47 +52,67 @@ export function MissionOverviewCard({
   legs,
   stats,
   loading,
+  error,
 }: Props): JSX.Element {
+  const empty = legs.length === 0;
+
   return (
-    <DashboardCard
-      title="Mission Overview"
-      className="h-full min-h-[300px]"
-      bodyClassName="flex flex-col gap-3 p-3"
-    >
+    <DashboardCard title="Mission Overview" bodyClassName="flex flex-col gap-3 p-3">
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
         <StatBlock label="Waypoints" value={String(stats.waypointCount)} />
         <StatBlock
           label="Total Distance"
-          value={`${stats.totalDistanceKm.toFixed(2)} km`}
+          value={
+            stats.waypointCount > 0
+              ? `${stats.totalDistanceKm.toFixed(2)} km`
+              : "—"
+          }
         />
-        <StatBlock label="Est. Time" value={`${stats.estTimeMin} min`} />
+        <StatBlock
+          label="Est. Time"
+          value={stats.estTimeMin > 0 ? `${stats.estTimeMin} min` : "—"}
+        />
         <StatBlock
           label="Max Altitude"
-          value={`${stats.maxAltitudeM.toFixed(0)} m`}
+          value={
+            stats.maxAltitudeM > 0 ? `${stats.maxAltitudeM.toFixed(0)} m` : "—"
+          }
         />
       </div>
 
-      <div>
-        <div className="mb-1 flex items-center justify-between text-[10px] text-dash-muted">
-          <span>Mission progress</span>
-          <span className="font-semibold text-dash-accent">
-            {stats.progressPercent}%
-          </span>
+      {!empty && (
+        <div>
+          <div className="mb-1 flex items-center justify-between text-[10px] text-dash-muted">
+            <span>Mission progress</span>
+            <span className="font-semibold text-dash-accent">
+              {stats.progressPercent}%
+            </span>
+          </div>
+          <div className="h-2 overflow-hidden rounded-full bg-dash-border">
+            <div
+              className="h-full rounded-full bg-dash-accent transition-all duration-500"
+              style={{ width: `${stats.progressPercent}%` }}
+            />
+          </div>
         </div>
-        <div className="h-2 overflow-hidden rounded-full bg-dash-border">
-          <div
-            className="h-full rounded-full bg-dash-accent transition-all duration-500"
-            style={{ width: `${stats.progressPercent}%` }}
-          />
-        </div>
-      </div>
+      )}
 
-      <div className="min-h-0 flex-1 overflow-y-auto rounded-md border border-dash-border bg-dash-bg/40">
-        {loading && legs.length === 0 ? (
+      <div className="max-h-[200px] overflow-y-auto rounded-md border border-dash-border bg-dash-bg/40">
+        {loading && empty && (
           <p className="p-4 text-center text-xs text-dash-muted">
             Loading mission from drone…
           </p>
-        ) : (
+        )}
+        {error && empty && (
+          <p className="p-4 text-center text-xs text-dash-amber">{error}</p>
+        )}
+        {!loading && empty && !error && (
+          <p className="p-4 text-center text-xs text-dash-muted">
+            No mission on the MAVLink link yet. Upload in QGC / Mission Planner or
+            wait for MISSION_ITEM_INT after connect.
+          </p>
+        )}
+        {!empty && (
           <ul className="divide-y divide-dash-border">
             {legs.map((leg, idx) => (
               <li

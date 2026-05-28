@@ -59,6 +59,7 @@ export interface DroneTelemetry {
   yaw_deg?: number;
   armed?: boolean;
   mode?: string;
+  ts_ms?: number;
 }
 
 export interface MissionWaypoint {

@@ -1,12 +1,13 @@
 "use client";
 
-import React, { useMemo } from "react";
+import React from "react";
 import { DashboardCard } from "./DashboardCard";
 import type { Telemetry } from "../../types/drone";
+import { fmtHeading, fmtInt, fmtNum } from "../../lib/format";
 
 interface Props {
   telemetry: Telemetry;
-  secondsSinceUpdate?: number;
+  secondsSinceUpdate: number;
 }
 
 function BatteryRing({ percent }: { percent: number }): JSX.Element {
@@ -15,14 +16,7 @@ function BatteryRing({ percent }: { percent: number }): JSX.Element {
   const offset = c - (percent / 100) * c;
   return (
     <svg className="h-9 w-9 shrink-0" viewBox="0 0 36 36" aria-hidden>
-      <circle
-        cx="18"
-        cy="18"
-        r={r}
-        fill="none"
-        stroke="#1F2937"
-        strokeWidth="3"
-      />
+      <circle cx="18" cy="18" r={r} fill="none" stroke="#1F2937" strokeWidth="3" />
       <circle
         cx="18"
         cy="18"
@@ -36,21 +30,6 @@ function BatteryRing({ percent }: { percent: number }): JSX.Element {
         transform="rotate(-90 18 18)"
       />
     </svg>
-  );
-}
-
-function GpsBars({ sats }: { sats: number }): JSX.Element {
-  const level = Math.min(4, Math.ceil(sats / 5));
-  return (
-    <div className="mt-1 flex items-end gap-0.5">
-      {[1, 2, 3, 4].map((i) => (
-        <div
-          key={i}
-          className={`w-1 rounded-sm ${i <= level ? "bg-dash-accent" : "bg-dash-border"}`}
-          style={{ height: 4 + i * 3 }}
-        />
-      ))}
-    </div>
   );
 }
 
@@ -87,55 +66,75 @@ function MetricTile({
 
 export function TelemetryHUDCard({
   telemetry,
-  secondsSinceUpdate = 2,
+  secondsSinceUpdate,
 }: Props): JSX.Element {
-  const hdg = String(Math.round(telemetry.heading)).padStart(3, "0");
-  const homeStr = useMemo(
-    () =>
-      `${telemetry.homePoint.lat.toFixed(4)}, ${telemetry.homePoint.lng.toFixed(4)}`,
-    [telemetry.homePoint.lat, telemetry.homePoint.lng]
-  );
-  const lastTime = new Date(telemetry.lastUpdate).toLocaleTimeString("en-US", {
+  const lastTime = new Date(telemetry.lastUpdateMs).toLocaleTimeString("en-US", {
     hour: "2-digit",
     minute: "2-digit",
     second: "2-digit",
     hour12: true,
   });
 
+  const homeStr =
+    telemetry.homePoint != null
+      ? `${telemetry.homePoint.lat.toFixed(4)}, ${telemetry.homePoint.lng.toFixed(4)}`
+      : "—";
+
   return (
-    <DashboardCard title="HUD / Telemetry" className="h-full" bodyClassName="p-3">
+    <DashboardCard title="HUD / Telemetry" bodyClassName="p-3">
       <div className="grid grid-cols-3 gap-2">
         <MetricTile
           label="Altitude"
-          value={`${telemetry.altitude.toFixed(1)} m`}
+          value={
+            telemetry.altitude != null ? `${fmtNum(telemetry.altitude)} m` : "—"
+          }
           sub="AGL"
         />
         <MetricTile
           label="Speed"
-          value={`${telemetry.speed.toFixed(1)} m/s`}
+          value={
+            telemetry.speed != null ? `${fmtNum(telemetry.speed)} m/s` : "—"
+          }
           sub="Ground"
         />
         <MetricTile
           label="Battery"
-          value={`${telemetry.batteryPercent}%`}
-          sub={`${telemetry.batteryTimeLeft.toFixed(0)} min left`}
-          extra={<BatteryRing percent={telemetry.batteryPercent} />}
+          value={
+            telemetry.batteryPercent != null
+              ? `${telemetry.batteryPercent}%`
+              : "—"
+          }
+          sub={
+            telemetry.batteryTimeLeft != null
+              ? `${fmtNum(telemetry.batteryTimeLeft, 0)} min left`
+              : "Not on link"
+          }
+          extra={
+            telemetry.batteryPercent != null ? (
+              <BatteryRing percent={telemetry.batteryPercent} />
+            ) : undefined
+          }
         />
         <MetricTile
           label="Distance"
-          value={`${telemetry.distanceFromHome.toFixed(2)} km`}
+          value={
+            telemetry.distanceFromHome != null
+              ? `${fmtNum(telemetry.distanceFromHome, 2)} km`
+              : "—"
+          }
           sub="From Home"
         />
         <MetricTile
           label="Heading"
-          value={`${hdg}°`}
-          sub={telemetry.headingCardinal ?? "—"}
+          value={
+            telemetry.heading != null ? `${fmtHeading(telemetry.heading)}°` : "—"
+          }
+          sub={telemetry.headingCardinal ?? undefined}
         />
         <MetricTile
           label="GPS"
-          value={String(telemetry.gpsSatellites)}
-          sub="Satellites"
-          extra={<GpsBars sats={telemetry.gpsSatellites} />}
+          value={fmtInt(telemetry.gpsSatellites)}
+          sub={telemetry.hasFix ? "3D fix" : "No fix yet"}
         />
         <MetricTile label="Home Point" value={homeStr} sub="Lat, Lon" />
         <MetricTile
@@ -144,13 +143,13 @@ export function TelemetryHUDCard({
           sub={
             telemetry.rcSignalDbm != null
               ? `${telemetry.rcSignalDbm} dBm`
-              : undefined
+              : "Not on link"
           }
         />
         <MetricTile
           label="Mode"
           value={telemetry.flightMode ?? telemetry.mode ?? "—"}
-          sub={telemetry.flightModeSub ?? "Mission"}
+          sub={telemetry.flightModeSub ?? undefined}
         />
       </div>
 

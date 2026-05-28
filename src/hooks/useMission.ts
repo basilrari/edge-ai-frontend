@@ -2,12 +2,11 @@
 
 import { useEffect, useState } from "react";
 import type { DroneMission } from "../components/types";
-import { MOCK_WAYPOINTS } from "../lib/mockData";
 import { newRequestId } from "../lib/gateway";
 import type { Waypoint } from "../types/drone";
 
 function missionToWaypoints(mission: DroneMission | null): Waypoint[] {
-  if (!mission?.waypoints?.length) return MOCK_WAYPOINTS;
+  if (!mission?.waypoints?.length) return [];
   return mission.waypoints.map((w) => ({
     id: w.seq,
     lat: w.lat_deg,
@@ -20,9 +19,11 @@ export function useMission(gatewayUrl: string): {
   waypoints: Waypoint[];
   mission: DroneMission | null;
   loading: boolean;
+  error: string | null;
 } {
   const [mission, setMission] = useState<DroneMission | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -32,14 +33,18 @@ export function useMission(gatewayUrl: string): {
         const res = await fetch(`${gatewayUrl}/drone/mission`, {
           headers: { "x-request-id": newRequestId() },
         });
-        if (!res.ok) return;
+        if (!res.ok) throw new Error(`mission HTTP ${res.status}`);
         const data = (await res.json()) as DroneMission;
         if (active) {
           setMission(data);
+          setError(null);
           setLoading(false);
         }
-      } catch {
-        if (active) setLoading(false);
+      } catch (e) {
+        if (active) {
+          setError(e instanceof Error ? e.message : "failed to load mission");
+          setLoading(false);
+        }
       }
     };
 
@@ -55,5 +60,6 @@ export function useMission(gatewayUrl: string): {
     waypoints: missionToWaypoints(mission),
     mission,
     loading,
+    error,
   };
 }

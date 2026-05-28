@@ -1,7 +1,11 @@
 /** Mission waypoint helpers (aligned with TUI `format.rs` command labels). */
 
 import type { DroneMission, MissionWaypoint } from "../components/types";
-import type { MissionLeg, MissionOverviewStats } from "../types/drone";
+import {
+  EMPTY_MISSION_STATS,
+  type MissionLeg,
+  type MissionOverviewStats,
+} from "../types/drone";
 
 export type LegStatus = MissionLeg["status"];
 
@@ -13,25 +17,6 @@ const CMD = {
   SPLINE: 82,
   LOITER_TO_ALT: 31,
 } as const;
-
-export function mavCmdLabel(cmd: number): string {
-  switch (cmd) {
-    case CMD.WAYPOINT:
-      return "Waypoint";
-    case CMD.TAKEOFF:
-      return "Takeoff";
-    case CMD.LAND:
-      return "Land";
-    case CMD.RTL:
-      return "Return to Home";
-    case CMD.SPLINE:
-      return "Spline WP";
-    case CMD.LOITER_TO_ALT:
-      return "Loiter";
-    default:
-      return `CMD ${cmd}`;
-  }
-}
 
 function haversineM(
   lat1: number,
@@ -61,7 +46,7 @@ function legLabel(wp: MissionWaypoint, navIndex: number): string {
   ) {
     return `Waypoint ${navIndex}`;
   }
-  return mavCmdLabel(wp.command);
+  return `CMD ${wp.command}`;
 }
 
 function legSubtitle(wp: MissionWaypoint): string | undefined {
@@ -89,7 +74,7 @@ function statusForSeq(
 }
 
 export function buildMissionLegs(mission: DroneMission | null): MissionLeg[] {
-  if (!mission?.waypoints?.length) return MOCK_MISSION_LEGS;
+  if (!mission?.waypoints?.length) return [];
 
   let navCount = 0;
   return mission.waypoints.map((wp) => {
@@ -113,7 +98,7 @@ export function buildMissionLegs(mission: DroneMission | null): MissionLeg[] {
 export function computeMissionStats(
   mission: DroneMission | null
 ): MissionOverviewStats {
-  if (!mission?.waypoints?.length) return MOCK_MISSION_STATS;
+  if (!mission?.waypoints?.length) return EMPTY_MISSION_STATS;
 
   const wps = mission.waypoints;
   let totalM = 0;
@@ -126,15 +111,17 @@ export function computeMissionStats(
     );
   }
   const maxAlt = Math.max(...wps.map((w) => w.alt_m));
+  const legs = buildMissionLegs(mission);
   const avgSpeedMps = 5;
-  const estMin = Math.max(1, Math.round(totalM / avgSpeedMps / 60));
+  const estMin =
+    totalM > 0 ? Math.max(1, Math.round(totalM / avgSpeedMps / 60)) : 0;
 
   return {
     waypointCount: wps.length,
     totalDistanceKm: totalM / 1000,
     estTimeMin: estMin,
     maxAltitudeM: maxAlt,
-    progressPercent: progressFromLegs(buildMissionLegs(mission)),
+    progressPercent: progressFromLegs(legs),
   };
 }
 
@@ -145,20 +132,5 @@ export function progressFromLegs(legs: MissionLeg[]): number {
   return Math.round(((done + active) / legs.length) * 100);
 }
 
-export const MOCK_MISSION_LEGS: MissionLeg[] = [
-  { id: 0, seq: 0, label: "Takeoff", subtitle: "Target alt 30 m", status: "completed" },
-  { id: 1, seq: 1, label: "Waypoint 1", subtitle: "37.77400, -122.42000 · 80 m", status: "completed" },
-  { id: 2, seq: 2, label: "Waypoint 2", subtitle: "37.77520, -122.41880 · 100 m", status: "in_progress" },
-  { id: 3, seq: 3, label: "Waypoint 3", subtitle: "37.77620, -122.41780 · 120 m", status: "pending" },
-  { id: 4, seq: 4, label: "Waypoint 4", status: "pending" },
-  { id: 5, seq: 5, label: "Waypoint 5", status: "pending" },
-  { id: 6, seq: 6, label: "Return to Home", status: "pending" },
-];
-
-export const MOCK_MISSION_STATS: MissionOverviewStats = {
-  waypointCount: 6,
-  totalDistanceKm: 2.48,
-  estTimeMin: 18,
-  maxAltitudeM: 120,
-  progressPercent: 42,
-};
+/** Est. time is computed from path length ÷ 5 m/s — not from the FC. */
+export const MISSION_EST_TIME_IS_ESTIMATED = true;

@@ -1,44 +1,32 @@
-/** Mission control dashboard domain types (spec + live bridge). */
-
 export interface Telemetry {
-  altitude: number;
-  speed: number;
-  batteryPercent: number;
-  batteryTimeLeft: number;
-  distanceFromHome: number;
-  heading: number;
-  headingCardinal?: string;
-  gpsSatellites: number;
-  gimbalPitch: number;
-  cameraMode: string;
-  cameraFps: string;
-  cameraIso?: number;
-  cameraShutter?: string;
-  cameraEv?: string;
-  rcSignalLabel?: string;
-  rcSignalDbm?: number;
-  flightMode?: string;
-  flightModeSub?: string;
-  homePoint: { lat: number; lng: number };
-  lastUpdate: string;
-  roll?: number;
-  pitch?: number;
-  mode?: string;
-  armed?: boolean;
-  lat?: number;
-  lng?: number;
+  altitude: number | null;
+  speed: number | null;
+  batteryPercent: number | null;
+  batteryTimeLeft: number | null;
+  distanceFromHome: number | null;
+  heading: number | null;
+  headingCardinal?: string | null;
+  gpsSatellites: number | null;
+  gimbalPitch: number | null;
+  cameraMode: string | null;
+  cameraFps: string | null;
+  cameraIso?: number | null;
+  rcSignalLabel?: string | null;
+  rcSignalDbm?: number | null;
+  flightMode?: string | null;
+  flightModeSub?: string | null;
+  homePoint: { lat: number; lng: number } | null;
+  lastUpdateMs: number;
+  roll?: number | null;
+  pitch?: number | null;
+  mode?: string | null;
+  armed?: boolean | null;
+  lat?: number | null;
+  lng?: number | null;
+  climbMps?: number | null;
+  link?: import("../components/types").DroneLinkInfo | null;
+  hasFix?: boolean;
 }
-
-export interface MissionLog {
-  id: string;
-  missionName: string;
-  date: string;
-  duration: string;
-  distance?: string;
-  status: "Success" | "Partial" | "Failed" | "In Progress";
-}
-
-export type MissionLegStatus = "completed" | "in_progress" | "pending";
 
 export interface MissionLeg {
   id: number;
@@ -47,6 +35,8 @@ export interface MissionLeg {
   subtitle?: string;
   status: MissionLegStatus;
 }
+
+export type MissionLegStatus = "completed" | "in_progress" | "pending";
 
 export interface MissionOverviewStats {
   waypointCount: number;
@@ -69,12 +59,12 @@ export interface DroneStatus {
   model: string;
   firmware: string;
   isOnline: boolean;
-  telemetry: Telemetry;
 }
 
-export interface MapWeatherOverlay {
-  temperatureC: number;
-  windSpeedKmh: number;
-  windDirection: string;
-  gpsQuality: string;
-}
+export const EMPTY_MISSION_STATS: MissionOverviewStats = {
+  waypointCount: 0,
+  totalDistanceKm: 0,
+  estTimeMin: 0,
+  maxAltitudeM: 0,
+  progressPercent: 0,
+};

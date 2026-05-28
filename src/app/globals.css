@@ -39,6 +39,7 @@ body::after {
 .dashboard-panel {
   @apply relative min-w-0 overflow-hidden rounded-lg border border-dash-border bg-dash-panel shadow-md;
   box-sizing: border-box;
+  isolation: isolate;
 }
 
 .dashboard-panel header {
@@ -47,6 +48,28 @@ body::after {
 
 .metric-tile {
   @apply min-h-[72px] rounded-md border border-dash-border bg-[#0b0e14]/80 px-2.5 py-2;
+}
+
+.dashboard-panel .leaflet-container {
+  z-index: 0 !important;
+}
+
+.dashboard-panel .leaflet-pane {
+  z-index: 1 !important;
+}
+
+.dashboard-panel .leaflet-top,
+.dashboard-panel .leaflet-bottom {
+  z-index: 2 !important;
+}
+
+.dashboard-panel .leaflet-control-scale-line {
+  border-color: var(--dash-muted) !important;
+  background: rgb(20 23 29 / 0.9) !important;
+  color: var(--dash-muted) !important;
+  font-size: 10px;
+  line-height: 1.1;
+  padding: 2px 5px 1px;
 }
 
 button.primary.send-drone-btn,

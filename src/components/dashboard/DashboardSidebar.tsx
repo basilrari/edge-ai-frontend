@@ -12,7 +12,7 @@ import {
   Settings,
   Target,
 } from "lucide-react";
-import { BRAND_NAME, MOCK_DRONE } from "../../lib/mockData";
+import { BRAND_NAME, SIDEBAR_DRONE } from "../../lib/mockData";
 
 const NAV = [
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, active: true },
@@ -28,12 +28,14 @@ interface Props {
   collapsed: boolean;
   onToggleCollapse: () => void;
   droneOnline: boolean;
+  linkDisplay?: string;
 }
 
 export function DashboardSidebar({
   collapsed,
   onToggleCollapse,
   droneOnline,
+  linkDisplay,
 }: Props): JSX.Element {
   return (
     <aside
@@ -82,19 +84,19 @@ export function DashboardSidebar({
         <div className="mx-2 mb-2 rounded-lg border border-dash-border bg-dash-panel p-3">
           <div className="mb-2 flex items-center justify-between">
             <span className="text-xs font-semibold text-dash-text">
-              {MOCK_DRONE.name}
+              {SIDEBAR_DRONE.name}
             </span>
             <span className="flex items-center gap-1 text-[10px] text-dash-accent">
               <span className="h-1.5 w-1.5 rounded-full bg-dash-accent" />
               {droneOnline ? "Online" : "Offline"}
             </span>
           </div>
-          <div className="mb-2 flex h-16 items-center justify-center rounded-md bg-[#0b0e14]">
+          <div className="mb-2 flex h-16 items-center justify-center rounded-md bg-dash-bg">
             <Plane className="h-10 w-10 text-dash-muted/60" strokeWidth={1.2} />
           </div>
-          <p className="text-[11px] text-dash-text">{MOCK_DRONE.model}</p>
-          <p className="font-mono text-[10px] text-dash-muted">
-            Firmware {MOCK_DRONE.firmware}
+          <p className="text-[11px] text-dash-text">{SIDEBAR_DRONE.model}</p>
+          <p className="truncate font-mono text-[10px] text-dash-muted">
+            {linkDisplay ?? "No MAVLink link"}
           </p>
         </div>
       )}
