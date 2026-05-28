@@ -5,12 +5,14 @@ import { ChevronLeft, Settings } from "lucide-react";
 import { fmtLinkKind } from "../../lib/format";
 
 interface Props {
+  pageTitle?: string;
   droneOnline: boolean;
   linkKind?: string | null;
   linkDisplay?: string | null;
 }
 
 export function DashboardNavbar({
+  pageTitle = "Mission Control",
   droneOnline,
   linkKind,
   linkDisplay,
@@ -24,6 +26,9 @@ export function DashboardNavbar({
       >
         <ChevronLeft className="h-4 w-4" />
         Mission Control
+        {pageTitle !== "Mission Control" ? (
+          <span className="text-dash-muted"> / {pageTitle}</span>
+        ) : null}
       </button>
 
       <div className="flex items-center gap-4 text-xs text-dash-text">

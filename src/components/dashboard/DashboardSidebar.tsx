@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import Link from "next/link";
 import clsx from "clsx";
 import {
   ChevronLeft,
@@ -14,21 +15,33 @@ import {
 } from "lucide-react";
 import { BRAND_NAME, SIDEBAR_DRONE } from "../../lib/constants";
 
-const NAV = [
-  { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, active: true },
-  { id: "mission", label: "Mission", icon: Target, active: false },
-  { id: "map", label: "Map", icon: Map, active: false },
-  { id: "logs", label: "Flight Logs", icon: ScrollText, active: false },
-  { id: "drones", label: "Drones", icon: Plane, active: false },
-  { id: "geofences", label: "Geofences", icon: MapPin, active: false },
-  { id: "settings", label: "Settings", icon: Settings, active: false },
-] as const;
+const NAV: {
+  id: string;
+  label: string;
+  icon: typeof LayoutDashboard;
+  href: string;
+  disabled?: boolean;
+}[] = [
+  { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, href: "/" },
+  { id: "mission", label: "Mission", icon: Target, href: "/mission" },
+  { id: "map", label: "Map", icon: Map, href: "#", disabled: true },
+  { id: "logs", label: "Flight Logs", icon: ScrollText, href: "#", disabled: true },
+  { id: "drones", label: "Drones", icon: Plane, href: "#", disabled: true },
+  { id: "geofences", label: "Geofences", icon: MapPin, href: "#", disabled: true },
+  { id: "settings", label: "Settings", icon: Settings, href: "#", disabled: true },
+];
 
 interface Props {
   collapsed: boolean;
   onToggleCollapse: () => void;
   droneOnline: boolean;
   linkDisplay?: string;
+  activePath: string;
+}
+
+function isActive(href: string, activePath: string): boolean {
+  if (href === "/") return activePath === "/";
+  return activePath.startsWith(href);
 }
 
 export function DashboardSidebar({
@@ -36,6 +49,7 @@ export function DashboardSidebar({
   onToggleCollapse,
   droneOnline,
   linkDisplay,
+  activePath,
 }: Props): JSX.Element {
   return (
     <aside
@@ -56,28 +70,44 @@ export function DashboardSidebar({
       </div>
 
       <nav className="flex flex-1 flex-col gap-0.5 p-2 pt-3">
-        {NAV.map(({ id, label, icon: Icon, active }) => (
-          <button
-            key={id}
-            type="button"
-            title={collapsed ? label : undefined}
-            className={clsx(
-              "flex items-center gap-2.5 rounded-md px-3 py-2.5 text-left text-[13px] transition-colors",
-              active
-                ? "bg-dash-accent/10 font-medium text-dash-accent"
+        {NAV.map(({ id, label, icon: Icon, href, disabled }) => {
+          const active = !disabled && isActive(href, activePath);
+          const className = clsx(
+            "flex items-center gap-2.5 rounded-md px-3 py-2.5 text-left text-[13px] transition-colors",
+            active
+              ? "bg-dash-accent/10 font-medium text-dash-accent"
+              : disabled
+                ? "cursor-not-allowed text-dash-muted/40"
                 : "text-dash-muted hover:bg-dash-panel hover:text-dash-text"
-            )}
-            aria-current={active ? "page" : undefined}
-          >
-            <Icon
-              className={clsx(
-                "h-[18px] w-[18px] shrink-0",
-                active ? "text-dash-accent" : "text-dash-muted"
-              )}
-            />
-            {!collapsed && label}
-          </button>
-        ))}
+          );
+
+          if (disabled) {
+            return (
+              <span key={id} className={className} title={collapsed ? label : undefined}>
+                <Icon className="h-[18px] w-[18px] shrink-0 text-dash-muted/40" />
+                {!collapsed && label}
+              </span>
+            );
+          }
+
+          return (
+            <Link
+              key={id}
+              href={href}
+              title={collapsed ? label : undefined}
+              className={className}
+              aria-current={active ? "page" : undefined}
+            >
+              <Icon
+                className={clsx(
+                  "h-[18px] w-[18px] shrink-0",
+                  active ? "text-dash-accent" : "text-dash-muted"
+                )}
+              />
+              {!collapsed && label}
+            </Link>
+          );
+        })}
       </nav>
 
       {!collapsed && (

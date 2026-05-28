@@ -9,48 +9,39 @@ import { DashboardCard } from "./DashboardCard";
 import type { Telemetry, Waypoint } from "../../types/drone";
 import type { PlannerWaypoint } from "../../lib/missionPlanner";
 import { fmtLinkKind } from "../../lib/format";
+import { addSatelliteBasemap } from "../../lib/mapBasemap";
+import { MAP_MAX_ZOOM } from "../../lib/mapConstants";
 
 interface Props {
   activeWaypoints: Waypoint[];
   plannerWaypoints?: PlannerWaypoint[];
   telemetry: Telemetry;
-  operator: { lat: number; lng: number } | null;
+  operator?: { lat: number; lng: number } | null;
   plannerMode?: boolean;
-  followDrone: boolean;
-  onFollowChange: (follow: boolean) => void;
+  followDrone?: boolean;
+  onFollowChange?: (follow: boolean) => void;
   onMapClick?: (lat: number, lng: number) => void;
+  heightPx?: number;
+  mapMaxZoom?: number;
+  initialZoom?: number;
 }
 
 const DEFAULT_CENTER: [number, number] = [23.558, 120.473];
-const MAP_MIN_HEIGHT_PX = 480;
-const INITIAL_ZOOM = 18;
-
-const SATELLITE_TILE_URL =
-  "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}";
-const SATELLITE_LABELS_URL =
-  "https://{s}.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}{r}.png";
-
-function addSatelliteBasemap(map: L.Map): void {
-  L.tileLayer(SATELLITE_TILE_URL, { maxZoom: 19, detectRetina: true }).addTo(
-    map
-  );
-  L.tileLayer(SATELLITE_LABELS_URL, {
-    subdomains: "abcd",
-    maxZoom: 20,
-    detectRetina: true,
-    opacity: 0.88,
-  }).addTo(map);
-}
+const DEFAULT_HEIGHT_PX = 320;
+const DEFAULT_INITIAL_ZOOM = 18;
 
 export function LiveMapCard({
   activeWaypoints,
   plannerWaypoints = [],
   telemetry,
-  operator,
+  operator = null,
   plannerMode = false,
-  followDrone,
+  followDrone = false,
   onFollowChange,
   onMapClick,
+  heightPx = DEFAULT_HEIGHT_PX,
+  mapMaxZoom = MAP_MAX_ZOOM,
+  initialZoom = DEFAULT_INITIAL_ZOOM,
 }: Props): JSX.Element {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
@@ -58,7 +49,9 @@ export function LiveMapCard({
   const plannerLayerRef = useRef<L.LayerGroup | null>(null);
   const droneRef = useRef<L.CircleMarker | null>(null);
   const operatorRef = useRef<L.CircleMarker | null>(null);
-  const userInteractedRef = useRef(false);
+
+  const showOperator = operator != null;
+  const showFollow = followDrone && onFollowChange != null;
 
   const center: [number, number] =
     telemetry.lat != null && telemetry.lng != null
@@ -75,35 +68,24 @@ export function LiveMapCard({
     const map = L.map(containerRef.current, {
       zoomControl: false,
       attributionControl: false,
+      maxZoom: mapMaxZoom,
       scrollWheelZoom: true,
       zoomSnap: 0,
       zoomDelta: 0.5,
-      wheelPxPerZoomLevel: 50,
+      wheelPxPerZoomLevel: 40,
       zoomAnimation: true,
       fadeAnimation: true,
       markerZoomAnimation: true,
       inertia: true,
       inertiaDeceleration: 2800,
-    }).setView(center, INITIAL_ZOOM);
+    }).setView(center, initialZoom);
 
-    addSatelliteBasemap(map);
+    addSatelliteBasemap(map, mapMaxZoom);
     L.control.scale({ imperial: false, maxWidth: 120 }).addTo(map);
 
     activeLayerRef.current = L.layerGroup().addTo(map);
     plannerLayerRef.current = L.layerGroup().addTo(map);
     mapRef.current = map;
-
-    const markUser = () => {
-      userInteractedRef.current = true;
-    };
-    map.on("zoomstart", markUser);
-    map.on("dragstart", markUser);
-
-    map.on("click", (e: L.LeafletMouseEvent) => {
-      if (plannerMode && onMapClick) {
-        onMapClick(e.latlng.lat, e.latlng.lng);
-      }
-    });
 
     const ro = new ResizeObserver(() => {
       map.invalidateSize({ animate: false });
@@ -112,9 +94,6 @@ export function LiveMapCard({
 
     return () => {
       ro.disconnect();
-      map.off("click");
-      map.off("zoomstart", markUser);
-      map.off("dragstart", markUser);
       map.remove();
       mapRef.current = null;
       activeLayerRef.current = null;
@@ -223,7 +202,7 @@ export function LiveMapCard({
       }
     }
 
-    if (operator) {
+    if (showOperator && operator) {
       const pos: [number, number] = [operator.lat, operator.lng];
       if (operatorRef.current) {
         operatorRef.current.setLatLng(pos);
@@ -239,28 +218,30 @@ export function LiveMapCard({
           .addTo(map);
       }
     }
-  }, [telemetry.lat, telemetry.lng, operator]);
+  }, [telemetry.lat, telemetry.lng, operator, showOperator]);
 
-  const smoothZoom = useCallback((delta: number) => {
-    const map = mapRef.current;
-    if (!map) return;
-    userInteractedRef.current = true;
-    const next = Math.max(
-      map.getMinZoom(),
-      Math.min(map.getMaxZoom(), map.getZoom() + delta)
-    );
-    map.flyTo(map.getCenter(), next, { duration: 0.35, easeLinearity: 0.25 });
-  }, []);
+  const smoothZoom = useCallback(
+    (delta: number) => {
+      const map = mapRef.current;
+      if (!map) return;
+      const next = Math.max(
+        map.getMinZoom(),
+        Math.min(map.getMaxZoom(), map.getZoom() + delta)
+      );
+      map.flyTo(map.getCenter(), next, { duration: 0.35, easeLinearity: 0.25 });
+    },
+    []
+  );
 
   const centerOnDrone = useCallback(() => {
     const map = mapRef.current;
     if (!map || telemetry.lat == null || telemetry.lng == null) return;
-    onFollowChange(true);
-    map.flyTo([telemetry.lat, telemetry.lng], INITIAL_ZOOM, {
+    onFollowChange?.(true);
+    map.flyTo([telemetry.lat, telemetry.lng], initialZoom, {
       duration: 0.45,
       easeLinearity: 0.25,
     });
-  }, [telemetry.lat, telemetry.lng, onFollowChange]);
+  }, [telemetry.lat, telemetry.lng, onFollowChange, initialZoom]);
 
   const gpsLabel = telemetry.hasFix ? "GPS fix" : "Waiting for GPS";
   const linkLabel = fmtLinkKind(telemetry.link?.kind);
@@ -268,19 +249,19 @@ export function LiveMapCard({
   return (
     <DashboardCard
       title="Live Map"
-      className="h-full min-h-0"
-      bodyClassName="relative min-h-0 flex-1 overflow-hidden p-0"
+      className={heightPx > DEFAULT_HEIGHT_PX ? "h-full min-h-0" : undefined}
+      bodyClassName="relative overflow-hidden p-0"
       headerRight={
         plannerMode ? (
           <span className="text-[10px] font-medium text-dash-amber">
-            Click map to add waypoints
+            Click map to add waypoints · zoom to ~20 m
           </span>
         ) : null
       }
     >
       <div
         className="relative isolate w-full"
-        style={{ minHeight: MAP_MIN_HEIGHT_PX, height: "100%" }}
+        style={{ height: heightPx }}
       >
         <div ref={containerRef} className="absolute inset-0 z-0" />
 
@@ -300,39 +281,45 @@ export function LiveMapCard({
               </>
             ) : null}
           </div>
-          <div className="rounded-md border border-dash-border bg-dash-panel/95 px-2.5 py-1.5 text-[10px] text-dash-muted backdrop-blur-sm">
-            <span className="mr-2 inline-flex items-center gap-1">
-              <span className="inline-block h-2 w-2 rounded-full bg-dash-accent" />
-              Drone
-            </span>
-            <span className="mr-2 inline-flex items-center gap-1">
-              <span className="inline-block h-2 w-2 rounded-full bg-dash-blue" />
-              Operator
-            </span>
-            {plannerWaypoints.length > 0 ? (
-              <span className="inline-flex items-center gap-1">
-                <span className="inline-block h-2 w-2 rounded-full bg-dash-amber" />
-                Plan
+          {(showOperator || plannerWaypoints.length > 0) && (
+            <div className="rounded-md border border-dash-border bg-dash-panel/95 px-2.5 py-1.5 text-[10px] text-dash-muted backdrop-blur-sm">
+              <span className="mr-2 inline-flex items-center gap-1">
+                <span className="inline-block h-2 w-2 rounded-full bg-dash-accent" />
+                Drone
               </span>
-            ) : null}
-          </div>
+              {showOperator ? (
+                <span className="mr-2 inline-flex items-center gap-1">
+                  <span className="inline-block h-2 w-2 rounded-full bg-dash-blue" />
+                  Operator
+                </span>
+              ) : null}
+              {plannerWaypoints.length > 0 ? (
+                <span className="inline-flex items-center gap-1">
+                  <span className="inline-block h-2 w-2 rounded-full bg-dash-amber" />
+                  Plan
+                </span>
+              ) : null}
+            </div>
+          )}
         </div>
 
         <div className="absolute right-3 top-3 z-[400] flex flex-col gap-1">
-          <button
-            type="button"
-            className={clsx(
-              "flex h-9 w-9 items-center justify-center rounded-md border backdrop-blur-sm",
-              followDrone
-                ? "border-dash-accent/50 bg-dash-accent/15 text-dash-accent"
-                : "border-dash-border bg-dash-panel/95 text-dash-muted hover:text-dash-text"
-            )}
-            onClick={() => onFollowChange(!followDrone)}
-            aria-label="Toggle follow drone"
-            title={followDrone ? "Following drone" : "Follow drone off"}
-          >
-            <Navigation className="h-4 w-4" />
-          </button>
+          {showFollow ? (
+            <button
+              type="button"
+              className={clsx(
+                "flex h-9 w-9 items-center justify-center rounded-md border backdrop-blur-sm",
+                followDrone
+                  ? "border-dash-accent/50 bg-dash-accent/15 text-dash-accent"
+                  : "border-dash-border bg-dash-panel/95 text-dash-muted hover:text-dash-text"
+              )}
+              onClick={() => onFollowChange?.(!followDrone)}
+              aria-label="Toggle follow drone"
+              title={followDrone ? "Following drone" : "Follow drone off"}
+            >
+              <Navigation className="h-4 w-4" />
+            </button>
+          ) : null}
           <button
             type="button"
             className="flex h-9 w-9 items-center justify-center rounded-md border border-dash-border bg-dash-panel/95 text-dash-muted hover:text-dash-text disabled:opacity-40"
