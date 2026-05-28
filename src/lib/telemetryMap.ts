@@ -27,6 +27,9 @@ export function mapDroneTelemetryToHud(live: DroneTelemetry | null): Telemetry {
     lat: live?.lat_deg ?? null,
     lng: live?.lon_deg ?? null,
     climbMps: live?.climb_m_s ?? null,
+    homeLat: live?.home_lat_deg ?? null,
+    homeLng: live?.home_lon_deg ?? null,
+    homeAltM: live?.home_alt_m ?? null,
     link: live?.link ?? null,
     hasFix: live?.ok ?? false,
   };

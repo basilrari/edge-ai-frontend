@@ -1,15 +1,14 @@
 "use client";
 
 import L from "leaflet";
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef } from "react";
 import { Crosshair, Minus, Navigation, Plus } from "lucide-react";
 import clsx from "clsx";
 import "leaflet/dist/leaflet.css";
 import { DashboardCard } from "./DashboardCard";
 import type { Telemetry, Waypoint } from "../../types/drone";
 import type { PlannerWaypoint } from "../../lib/missionPlanner";
-import { fmtLinkKind } from "../../lib/format";
-import { addSatelliteBasemap, type BasemapProvider } from "../../lib/mapBasemap";
+import { addSatelliteBasemap } from "../../lib/mapBasemap";
 import { MAP_MAX_ZOOM } from "../../lib/mapConstants";
 
 interface Props {
@@ -45,8 +44,6 @@ export function LiveMapCard({
   maptilerApiKey,
   initialZoom = DEFAULT_INITIAL_ZOOM,
 }: Props): JSX.Element {
-  const [basemapProvider, setBasemapProvider] =
-    useState<BasemapProvider>("esri");
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const activeLayerRef = useRef<L.LayerGroup | null>(null);
@@ -84,7 +81,7 @@ export function LiveMapCard({
       inertiaDeceleration: 2800,
     }).setView(center, initialZoom);
 
-    addSatelliteBasemap(map, mapMaxZoom, maptilerApiKey, setBasemapProvider);
+    addSatelliteBasemap(map, mapMaxZoom, maptilerApiKey);
     L.control.scale({ imperial: false, maxWidth: 120 }).addTo(map);
 
     activeLayerRef.current = L.layerGroup().addTo(map);
@@ -247,7 +244,6 @@ export function LiveMapCard({
   }, [telemetry.lat, telemetry.lng, onFollowChange, initialZoom]);
 
   const gpsLabel = telemetry.hasFix ? "GPS fix" : "Waiting for GPS";
-  const linkLabel = fmtLinkKind(telemetry.link?.kind);
 
   return (
     <DashboardCard
@@ -276,16 +272,6 @@ export function LiveMapCard({
               }
             >
               {gpsLabel}
-            </span>
-            {linkLabel ? (
-              <>
-                <span className="text-dash-border"> · </span>
-                <span className="text-dash-muted">{linkLabel}</span>
-              </>
-            ) : null}
-            <span className="text-dash-border"> · </span>
-            <span className="text-dash-muted">
-              {basemapProvider === "maptiler" ? "MapTiler" : "Esri"}
             </span>
           </div>
           {(showOperator || plannerWaypoints.length > 0) && (

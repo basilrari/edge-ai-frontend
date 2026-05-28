@@ -49,6 +49,9 @@ export interface DroneTelemetry {
   armed?: boolean;
   mode?: string;
   ts_ms?: number;
+  home_lat_deg?: number;
+  home_lon_deg?: number;
+  home_alt_m?: number;
 }
 
 export interface MissionWaypoint {

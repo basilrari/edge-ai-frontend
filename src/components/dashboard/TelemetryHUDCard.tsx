@@ -112,6 +112,19 @@ export function TelemetryHUDCard({
       </div>
 
       <p className="mt-3 border-t border-dash-border pt-2 text-[9px] uppercase tracking-wide text-dash-muted">
+        Home Location{" "}
+        <span className="font-mono normal-case text-dash-text">
+          {telemetry.homeLat != null && telemetry.homeLng != null
+            ? `${telemetry.homeLat.toFixed(5)}, ${telemetry.homeLng.toFixed(5)}${
+                telemetry.homeAltM != null
+                  ? ` · ${telemetry.homeAltM.toFixed(0)} m`
+                  : ""
+              }`
+            : "—"}
+        </span>
+      </p>
+
+      <p className="mt-2 text-[9px] uppercase tracking-wide text-dash-muted">
         Last Update{" "}
         <span className="font-mono normal-case text-dash-text">
           {lastTime} ({secondsSinceUpdate}s ago)

@@ -7,6 +7,7 @@ import { DashboardSidebar } from "./DashboardSidebar";
 import { BottomStatusBar } from "./BottomStatusBar";
 import { useTelemetry } from "../../hooks/useTelemetry";
 import { GATEWAY_URL } from "../../lib/gateway";
+import { fmtLinkKind } from "../../lib/format";
 
 interface Props {
   children: React.ReactNode;
@@ -29,7 +30,7 @@ export function AppShell({
           collapsed={sidebarCollapsed}
           onToggleCollapse={() => setSidebarCollapsed((c) => !c)}
           droneOnline={connected}
-          linkDisplay={live?.link?.display}
+          linkDisplay={fmtLinkKind(live?.link?.kind) ?? undefined}
           activePath={pathname}
         />
 

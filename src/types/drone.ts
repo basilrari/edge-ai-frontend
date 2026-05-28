@@ -17,6 +17,9 @@ export interface Telemetry {
   lat?: number | null;
   lng?: number | null;
   climbMps?: number | null;
+  homeLat?: number | null;
+  homeLng?: number | null;
+  homeAltM?: number | null;
   link?: import("../components/types").DroneLinkInfo | null;
   hasFix?: boolean;
 }
