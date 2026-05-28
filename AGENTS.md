@@ -1,21 +1,13 @@
 # Frontend — For Agents
 
-This file describes the **frontend structure**, **conventions**, and **integration points** so agents can work on the Jetson SAR Gateway dashboard without guessing.
+Mission Control dashboard for the Jetson SAR Gateway. All UI lives under `src/components/dashboard/`; there is no legacy operator UI.
 
 ---
 
 ## Project context
 
-- **Code** is the SAR (Search and Rescue) drone repo. See [Code/README.md](../README.md) for the full architecture (Frontend → Gateway → LLM → Drone Server / Model Server).
-- The **frontend** is the operator’s main interface: text input for natural-language intent, quick actions for SAR model tools, and (planned) map for waypoint selection and mission control. It talks only to the **Gateway** (HTTP). The Gateway routes accepted commands to the **Drone Server** (drone-server/) or **Model Server** (python-worker / ROS2). Do not call drone-server or model server directly from the frontend.
-
----
-
-## Base context
-
-- **Repo**: Frontend lives in `frontend/`; gateway (Rust API) lives in `gateway/`.
-- **Gateway base URL**: From `NEXT_PUBLIC_GATEWAY_URL` (default `http://localhost:3000`). All API calls use this.
-- **API contract**: Exact request/response shapes are in `gateway/AGENTS.md`. This file focuses on how the frontend uses them.
+- **Code** is the SAR drone repo. See [Code/README.md](../README.md) for architecture (Frontend → Gateway → LLM → drone-http / model server).
+- The frontend talks only to the **Gateway** over HTTP/WebSocket. Drone data is accessed via gateway proxies (`/drone/*`), not by calling drone-http directly.
 
 ---
 
@@ -24,87 +16,67 @@ This file describes the **frontend structure**, **conventions**, and **integrati
 ```
 frontend/src/
 ├── app/
-│   ├── layout.tsx   # Root layout, metadata, viewport, dark class, globals.css
-│   ├── page.tsx     # Single dashboard page: state, status poll, infer, layout
-│   └── globals.css  # Tailwind + custom classes (see Styling below)
-└── components/
-    ├── types.ts              # ApiResponse, StatusResponse (matches gateway JSON)
-    ├── ActiveCommandBar.tsx   # Drone + model cards from last applied only; proposal + Accept/Reject from latest
-    ├── StatusCard.tsx         # Gateway status, metrics, last tool decision, LLM summary
-    ├── HistoryTable.tsx       # Last 10 inferences (HistoryEntry = ApiResponse + timestamp)
-    ├── PromptForm.tsx        # Textarea + Send; calls onSend(prompt)
-    ├── QuickActions.tsx       # Buttons that call onSelect(prompt) for SAR model tools
-    └── ToolsPanel.tsx         # Static list of model + drone tools (no API)
+│   ├── layout.tsx
+│   ├── page.tsx              # Renders <DashboardLayout />
+│   └── globals.css           # Dashboard theme, Leaflet z-index fixes
+├── components/
+│   ├── dashboard/
+│   │   ├── DashboardLayout.tsx   # Main grid, data hooks, infer handler
+│   │   ├── DashboardNavbar.tsx   # Online status, link type, battery
+│   │   ├── DashboardSidebar.tsx
+│   │   ├── MissionPromptCard.tsx # POST /infer
+│   │   ├── LiveMapCard.tsx       # Leaflet map + waypoints + drone marker
+│   │   ├── TelemetryHUDCard.tsx
+│   │   ├── MissionOverviewCard.tsx
+│   │   ├── FlightLogsCard.tsx
+│   │   ├── BottomStatusBar.tsx
+│   │   └── DashboardCard.tsx
+│   └── types.ts              # ApiResponse, DroneTelemetry, DroneMission, etc.
+├── hooks/
+│   ├── useTelemetry.ts       # WS + REST telemetry → HUD model
+│   ├── useDroneTelemetryWs.ts
+│   ├── useMission.ts
+│   └── useFlightLogs.ts
+├── lib/
+│   ├── gateway.ts            # GATEWAY_URL, sendInferPrompt
+│   ├── telemetryMap.ts       # DroneTelemetry → Telemetry HUD fields
+│   ├── missionUtils.ts       # Mission legs + stats from waypoints
+│   ├── format.ts             # Display formatters
+│   └── constants.ts          # Brand, prompt placeholder, char limit
+└── types/drone.ts            # Telemetry, MissionLeg, Waypoint view types
 ```
 
-- **Single page**: All UI is in `app/page.tsx`; no other routes.
-- **Client components**: `page.tsx` and all components under `components/` are `"use client"` (they use state, effects, event handlers).
-
----
-
-## Types (`components/types.ts`)
-
-- **ApiResponse**: Matches POST `/infer` response — `state`, `model`, `override_active`, `category`, `tool_name`, `pending_approval`, optional **`tools`** (multi-step proposal), `tool_params`, `llm_response`, `action_taken`, `latency_ms`, `llm_latency_ms`, plus optional debug/drone fields.
-- **StatusResponse**: Matches GET `/status` — `state`, `model`, `override_active`, `latency_ms`, `llm_latency_ms`, `memory_estimate_mb`. (Frontend does not use `active_command` from status; it derives “current command” from the last **accepted** response in `ActiveCommandBar`, not from status.)
-
-History entries are `ApiResponse & { timestamp: string }` (ISO string), kept in state in `page.tsx` and capped at 10. Only one entry per outcome: added when Infer returns without `pending_approval`, or when the user Accepts (**ApplyTool** or **ApplyToolSequence** response); proposals are not added to avoid double entries.
+Single route: `/` → `DashboardLayout`. All dashboard components are `"use client"`.
 
 ---
 
 ## Data flow
 
-1. **Status**: `page.tsx` polls `GET ${GATEWAY_URL}/status` every 10s and passes `status: StatusResponse | null` to `StatusCard`.
-2. **Infer**: User submits via `PromptForm` or `QuickActions` → `page.tsx` calls `POST ${GATEWAY_URL}/infer` with `{"Infer": {"prompt": "..."}}` → response stored as `latest`. If `pending_approval: true`, the frontend does not update the "Current active command" cards or add to history; it shows "Proposed: …" (multi-step: numbered chain) and Accept/Reject. If `pending_approval` is false, response is stored as `lastApplied`, cards update, and one entry is prepended to `history`.
-3. **Active command (cards)**: `ActiveCommandBar` receives `confirmed` (`lastApplied`) and `latest`. The Drone and Model cards are driven only by `confirmed` (last response sent to server after Accept). They update only after Accept or when Infer returns without a tool. When there is a pending proposal, a line "Proposed: … — Approve to send to server" and Accept/Reject buttons are shown.
-4. **Accept**: User clicks Accept → `POST /infer` with **`ApplyToolSequence`** and the proposed `tools` array when `tools` has 2+ steps; otherwise **`ApplyTool`** with `category`, `tool_name`, optional `params` → response stored as `latest` and `lastApplied`, one entry prepended to `history`.
-5. **Reject**: User clicks Reject → `latest` is updated with `pending_approval: false` and `tools` cleared; cards and history unchanged.
-6. **StatusCard** receives both `status` and `latest`; it shows gateway metrics and "last tool decision" (category, tool_name, action_taken) and parses `llm_response` as JSON for an optional LLM run summary (tokens, timings, etc.).
+1. **Telemetry**: `useDroneTelemetryWs` connects to `WS ${GATEWAY_URL}/drone/ws`; `useTelemetry` also polls `GET /drone/telemetry` every 5s as fallback. Mapped via `telemetryMap.ts`.
+2. **Mission**: `useMission` polls `GET /drone/mission` every 5s → waypoints on map + Mission Overview legs.
+3. **Flight logs**: `useFlightLogs` polls `GET /drone/logs` every 3s.
+4. **Prompt**: `MissionPromptCard` → `sendInferPrompt()` → `POST /infer` with `{"Infer": {"prompt": "..."}}`. Success/error shown inline.
 
 ---
 
-## API calls (from frontend)
+## HUD fields not on the MAVLink link yet
 
-- **GET /status**: No body. Returns `StatusResponse`. Used only for polling.
-- **POST /infer**: Body `{"Infer": {"prompt": "<string>"}}` (returns proposal with optional `pending_approval: true` and optional `tools` for multi-step), `{"ApplyTool": {...}}` after Accept (single step), or `{"ApplyToolSequence": {"tools": [...]}}` after Accept (multi-step). Returns `ApiResponse`. Override/ClearOverride are not used by the current UI (see `gateway/AGENTS.md`).
-
-All requests are `fetch()` from the client; no Next API routes. CORS is enabled on the gateway for all origins.
+Documented in `telemetryMap.ts` (`TELEMETRY_NOT_FROM_DRONE`): battery, GPS sat count, distance from home, home coordinates, RC signal, gimbal/camera. These render as `—` until drone-http exposes them.
 
 ---
 
-## Tool names (display)
+## Styling
 
-- **Model tools** (SAR perception): `human_detect`, `flood_seg`, `flood_class`. Labels in `ActiveCommandBar`; `ToolsPanel` and `QuickActions` list the same.
-- **Drone tools**: many MAVLink-backed tools (e.g. `goto_location`, `takeoff`, `circle_search`, `return_to_home`, …). Listed in `ToolsPanel`; labels in `ActiveCommandBar`. Applied via gateway → `drone-http`.
-
-Adding a new tool: add label in `ActiveCommandBar` (and optionally a quick prompt in `QuickActions` and a row in `ToolsPanel`), and ensure the gateway returns that `tool_name` from `/infer`.
-
-- **Category "none"**: When the gateway returns `category: "none"` (e.g. `tool_name: "ambiguous_request"`), the UI treats it as no tool selected; gateway state may be IDLE. Add human-readable labels in `ActiveCommandBar`’s `NONE_REASON_LABELS` if needed.
-
----
-
-## Styling (Tailwind + globals.css)
-
-- **Theme**: Dark only. `globals.css` sets `color-scheme: dark`; `layout.tsx` uses `className="dark"` on `<html>`.
-- **Custom classes** (in `globals.css`):
-  - `.card` — rounded card with border, slate/cyan, backdrop blur.
-  - `.badge` — small pill; `.badge-active` — green, pulsed (for ACTIVE state).
-  - `button.primary` — emerald submit button; `button.outline` — outline secondary.
-  - `textarea.prompt-input` — main prompt input.
-  - `code.llm-response` — raw LLM response block.
-- **Safe area**: `.safe-area-padding` for notches/home indicator on mobile.
-- **Layout**: Responsive grid; on small screens tools panel is below history; on md+ it’s in the sidebar next to `StatusCard`.
-
-Use existing utility classes and these custom classes for consistency; avoid introducing new one-off global classes unless needed.
+- Dark theme only (`--dash-*` CSS variables in `globals.css`, Tailwind `dash` colors in `tailwind.config.ts`).
+- Use `dashboard-panel`, `metric-tile`, `prompt-input`, `button.primary` — do not reintroduce legacy `.card` / `.badge` classes from the old UI.
 
 ---
 
 ## Conventions for agents
 
-1. **Gateway URL**: Always use `process.env.NEXT_PUBLIC_GATEWAY_URL ?? "http://localhost:3000"` (or a single `useMemo`/constant in `page.tsx`) so env can override.
-2. **Types**: Keep `ApiResponse` and `StatusResponse` in `components/types.ts` aligned with gateway JSON (see `gateway/AGENTS.md`). Add new fields there when the API gains them.
-3. **New components**: Place in `src/components/`, use `"use client"` if they use hooks or events; receive data via props from `page.tsx`.
-4. **New API actions**: Override/ClearOverride are not in the UI yet; add buttons or controls that POST `{"Override": {...}}` or `{"ClearOverride": null}` and then refresh status or latest as needed.
-5. **Errors**: Infer errors are stored in `page.tsx` state and passed to `PromptForm`; display as non-blocking (e.g. inline message). Status poll errors are only logged.
-6. **History**: Kept in React state (last 10); no persistence. Changing that would require a backend or local storage and a small refactor in `page.tsx`.
+1. **Gateway URL**: `process.env.NEXT_PUBLIC_GATEWAY_URL ?? "http://localhost:3000"` via `lib/gateway.ts`.
+2. **Types**: Keep `components/types.ts` aligned with gateway and drone-http JSON.
+3. **New UI**: Add components under `components/dashboard/`; wire data in `DashboardLayout.tsx`.
+4. **Maps**: Use Leaflet in `LiveMapCard` (Carto Dark basemap); cap Leaflet z-index inside `.dashboard-panel`.
 
-For the **exact** gateway request/response shapes and server behavior, always refer to **gateway/AGENTS.md**.
+For gateway API shapes, see **gateway/AGENTS.md**.

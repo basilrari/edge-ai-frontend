@@ -1,9 +1,9 @@
 "use client";
 
 import React, { FormEvent, useState } from "react";
-import { FileUp, Info, LayoutTemplate, Loader2, Send } from "lucide-react";
+import { Info, Loader2, Send } from "lucide-react";
 import { DashboardCard } from "./DashboardCard";
-import { MAX_PROMPT_CHARS, PROMPT_PLACEHOLDER } from "../../lib/mockData";
+import { MAX_PROMPT_CHARS, PROMPT_PLACEHOLDER } from "../../lib/constants";
 
 interface Props {
   onSend: (prompt: string) => Promise<void>;
@@ -31,7 +31,7 @@ export function MissionPromptCard({
     <DashboardCard
       title="Send Prompt / Mission"
       className="h-full"
-      headerRight={<Info className="h-3.5 w-3.5 text-slate-500" aria-hidden />}
+      headerRight={<Info className="h-3.5 w-3.5 text-dash-muted" aria-hidden />}
     >
       <form onSubmit={handleSubmit} className="flex h-full flex-col gap-3">
         <textarea
@@ -44,16 +44,8 @@ export function MissionPromptCard({
           disabled={loading}
         />
 
-        <div className="flex flex-wrap items-center gap-2">
-          <button type="button" className="outline text-xs" disabled>
-            <LayoutTemplate className="h-3.5 w-3.5" />
-            Templates
-          </button>
-          <button type="button" className="outline text-xs" disabled>
-            <FileUp className="h-3.5 w-3.5" />
-            Upload KML
-          </button>
-          <span className="ml-auto font-mono text-[11px] text-slate-500">
+        <div className="flex justify-end">
+          <span className="font-mono text-[11px] text-dash-muted">
             {value.length} / {MAX_PROMPT_CHARS}
           </span>
         </div>

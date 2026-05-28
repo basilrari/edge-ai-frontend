@@ -12,7 +12,7 @@ import {
   Settings,
   Target,
 } from "lucide-react";
-import { BRAND_NAME, SIDEBAR_DRONE } from "../../lib/mockData";
+import { BRAND_NAME, SIDEBAR_DRONE } from "../../lib/constants";
 
 const NAV = [
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, active: true },

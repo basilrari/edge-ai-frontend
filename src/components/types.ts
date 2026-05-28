@@ -26,17 +26,6 @@ export interface ApiResponse {
   llm_tool_json?: string | null;
 }
 
-export interface StatusResponse {
-  state: string;
-  model: string;
-  override_active: boolean;
-  latency_ms: number;
-  llm_latency_ms: number;
-  memory_estimate_mb: number;
-  request_id?: string;
-  debug_trace?: string[];
-}
-
 export interface DroneLinkInfo {
   kind: string;
   display: string;
