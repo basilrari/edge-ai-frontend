@@ -1,23 +1,17 @@
 "use client";
 
 import React from "react";
-import {
-  Battery,
-  ChevronLeft,
-  Settings,
-} from "lucide-react";
+import { ChevronLeft, Settings } from "lucide-react";
 import { fmtLinkKind } from "../../lib/format";
 
 interface Props {
   droneOnline: boolean;
-  batteryPercent: number | null;
   linkKind?: string | null;
   linkDisplay?: string | null;
 }
 
 export function DashboardNavbar({
   droneOnline,
-  batteryPercent,
   linkKind,
   linkDisplay,
 }: Props): JSX.Element {
@@ -48,10 +42,6 @@ export function DashboardNavbar({
               {linkLabel}
             </span>
           ) : null}
-        </span>
-        <span className="flex items-center gap-1 font-medium">
-          <Battery className="h-4 w-4 text-dash-accent" />
-          {batteryPercent != null ? `${batteryPercent}%` : "—"}
         </span>
         <button
           type="button"

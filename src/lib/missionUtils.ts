@@ -18,6 +18,8 @@ const CMD = {
   LOITER_TO_ALT: 31,
 } as const;
 
+const DEFAULT_SPEED_MPS = 5;
+
 function haversineM(
   lat1: number,
   lon1: number,
@@ -33,6 +35,52 @@ function haversineM(
       Math.cos((lat2 * Math.PI) / 180) *
       Math.sin(dLon / 2) ** 2;
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+/** ArduPilot TAKEOFF/RTL items often use 0,0 — those legs must not affect path length. */
+function hasValidPosition(wp: MissionWaypoint): boolean {
+  if (!Number.isFinite(wp.lat_deg) || !Number.isFinite(wp.lon_deg)) return false;
+  if (Math.abs(wp.lat_deg) < 1e-5 && Math.abs(wp.lon_deg) < 1e-5) return false;
+  if (Math.abs(wp.lat_deg) > 90 || Math.abs(wp.lon_deg) > 180) return false;
+  return true;
+}
+
+/** Mission items that define a geographic point on the flown path. */
+function isPathWaypoint(wp: MissionWaypoint): boolean {
+  if (
+    wp.command === CMD.WAYPOINT ||
+    wp.command === CMD.SPLINE ||
+    wp.command === CMD.LOITER_TO_ALT
+  ) {
+    return hasValidPosition(wp);
+  }
+  if (wp.command === CMD.LAND) return hasValidPosition(wp);
+  return false;
+}
+
+function pathWaypointsInOrder(wps: MissionWaypoint[]): MissionWaypoint[] {
+  return wps.filter(isPathWaypoint);
+}
+
+function countNavWaypoints(wps: MissionWaypoint[]): number {
+  return wps.filter(
+    (wp) =>
+      wp.command === CMD.WAYPOINT ||
+      wp.command === CMD.SPLINE ||
+      wp.command === CMD.LOITER_TO_ALT
+  ).length;
+}
+
+function pathDistanceM(points: MissionWaypoint[]): number {
+  let total = 0;
+  for (let i = 1; i < points.length; i++) {
+    const a = points[i - 1];
+    const b = points[i];
+    const horizontal = haversineM(a.lat_deg, a.lon_deg, b.lat_deg, b.lon_deg);
+    const vertical = Math.abs(b.alt_m - a.alt_m);
+    total += Math.sqrt(horizontal ** 2 + vertical ** 2);
+  }
+  return total;
 }
 
 function legLabel(wp: MissionWaypoint, navIndex: number): string {
@@ -96,30 +144,38 @@ export function buildMissionLegs(mission: DroneMission | null): MissionLeg[] {
 }
 
 export function computeMissionStats(
-  mission: DroneMission | null
+  mission: DroneMission | null,
+  groundspeedMps?: number | null
 ): MissionOverviewStats {
   if (!mission?.waypoints?.length) return EMPTY_MISSION_STATS;
 
   const wps = mission.waypoints;
-  let totalM = 0;
-  for (let i = 1; i < wps.length; i++) {
-    totalM += haversineM(
-      wps[i - 1].lat_deg,
-      wps[i - 1].lon_deg,
-      wps[i].lat_deg,
-      wps[i].lon_deg
-    );
-  }
-  const maxAlt = Math.max(...wps.map((w) => w.alt_m));
+  const path = pathWaypointsInOrder(wps);
+  const totalM = pathDistanceM(path);
+
+  const altCandidates = wps
+    .filter(
+      (w) =>
+        w.command === CMD.TAKEOFF ||
+        w.command === CMD.WAYPOINT ||
+        w.command === CMD.SPLINE ||
+        w.command === CMD.LOITER_TO_ALT
+    )
+    .map((w) => w.alt_m);
+  const maxAlt = altCandidates.length > 0 ? Math.max(...altCandidates) : 0;
+
+  const speed =
+    groundspeedMps != null && groundspeedMps > 0.5
+      ? groundspeedMps
+      : DEFAULT_SPEED_MPS;
+  const estTimeSec = totalM > 0 ? totalM / speed : 0;
+
   const legs = buildMissionLegs(mission);
-  const avgSpeedMps = 5;
-  const estMin =
-    totalM > 0 ? Math.max(1, Math.round(totalM / avgSpeedMps / 60)) : 0;
 
   return {
-    waypointCount: wps.length,
+    waypointCount: countNavWaypoints(wps),
     totalDistanceKm: totalM / 1000,
-    estTimeMin: estMin,
+    estTimeSec,
     maxAltitudeM: maxAlt,
     progressPercent: progressFromLegs(legs),
   };
@@ -132,5 +188,11 @@ export function progressFromLegs(legs: MissionLeg[]): number {
   return Math.round(((done + active) / legs.length) * 100);
 }
 
-/** Est. time is computed from path length ÷ 5 m/s — not from the FC. */
-export const MISSION_EST_TIME_IS_ESTIMATED = true;
+export function formatEstTime(sec: number): string {
+  if (sec <= 0) return "—";
+  if (sec < 60) return `${Math.round(sec)} s`;
+  if (sec < 3600) return `${Math.round(sec / 60)} min`;
+  const h = Math.floor(sec / 3600);
+  const m = Math.round((sec % 3600) / 60);
+  return m > 0 ? `${h}h ${m}m` : `${h}h`;
+}

@@ -1,18 +1,28 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { DroneMission } from "../components/types";
 import { newRequestId } from "../lib/gateway";
 import type { Waypoint } from "../types/drone";
 
+const NAV_CMD = new Set([16, 31, 82]);
+
 function missionToWaypoints(mission: DroneMission | null): Waypoint[] {
   if (!mission?.waypoints?.length) return [];
-  return mission.waypoints.map((w) => ({
-    id: w.seq,
-    lat: w.lat_deg,
-    lng: w.lon_deg,
-    order: w.seq,
-  }));
+  return mission.waypoints
+    .filter(
+      (w) =>
+        NAV_CMD.has(w.command) &&
+        Number.isFinite(w.lat_deg) &&
+        Number.isFinite(w.lon_deg) &&
+        !(Math.abs(w.lat_deg) < 1e-5 && Math.abs(w.lon_deg) < 1e-5)
+    )
+    .map((w) => ({
+      id: w.seq,
+      lat: w.lat_deg,
+      lng: w.lon_deg,
+      order: w.seq,
+    }));
 }
 
 export function useMission(gatewayUrl: string): {
@@ -20,10 +30,14 @@ export function useMission(gatewayUrl: string): {
   mission: DroneMission | null;
   loading: boolean;
   error: string | null;
+  reload: () => void;
 } {
   const [mission, setMission] = useState<DroneMission | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [refreshNonce, setRefreshNonce] = useState(0);
+
+  const reload = useCallback(() => setRefreshNonce((n) => n + 1), []);
 
   useEffect(() => {
     let active = true;
@@ -54,12 +68,13 @@ export function useMission(gatewayUrl: string): {
       active = false;
       clearInterval(id);
     };
-  }, [gatewayUrl]);
+  }, [gatewayUrl, refreshNonce]);
 
   return {
     waypoints: missionToWaypoints(mission),
     mission,
     loading,
     error,
+    reload,
   };
 }

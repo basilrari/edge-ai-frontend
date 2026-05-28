@@ -1,24 +1,17 @@
 export interface Telemetry {
   altitude: number | null;
+  altitudeAmsl?: number | null;
   speed: number | null;
-  batteryPercent: number | null;
-  batteryTimeLeft: number | null;
-  distanceFromHome: number | null;
+  airspeed?: number | null;
   heading: number | null;
   headingCardinal?: string | null;
   gpsSatellites: number | null;
-  gimbalPitch: number | null;
-  cameraMode: string | null;
-  cameraFps: string | null;
-  cameraIso?: number | null;
-  rcSignalLabel?: string | null;
-  rcSignalDbm?: number | null;
   flightMode?: string | null;
   flightModeSub?: string | null;
-  homePoint: { lat: number; lng: number } | null;
   lastUpdateMs: number;
   roll?: number | null;
   pitch?: number | null;
+  yaw?: number | null;
   mode?: string | null;
   armed?: boolean | null;
   lat?: number | null;
@@ -41,7 +34,7 @@ export type MissionLegStatus = "completed" | "in_progress" | "pending";
 export interface MissionOverviewStats {
   waypointCount: number;
   totalDistanceKm: number;
-  estTimeMin: number;
+  estTimeSec: number;
   maxAltitudeM: number;
   progressPercent: number;
 }
@@ -64,7 +57,7 @@ export interface DroneStatus {
 export const EMPTY_MISSION_STATS: MissionOverviewStats = {
   waypointCount: 0,
   totalDistanceKm: 0,
-  estTimeMin: 0,
+  estTimeSec: 0,
   maxAltitudeM: 0,
   progressPercent: 0,
 };
