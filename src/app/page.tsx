@@ -11,9 +11,10 @@ import type {
   DroneTelemetry,
   StatusResponse,
 } from "../components/types";
-import { DroneHud } from "../components/DroneHud";
+import { AttitudeHud } from "../components/AttitudeHud";
 import { LinkBadge } from "../components/LinkBadge";
 import { FlightLogsModal } from "../components/FlightLogsModal";
+import { useDroneTelemetryWs } from "../hooks/useDroneTelemetryWs";
 import { motion } from "framer-motion";
 import { Activity, ScrollText, SatelliteDish } from "lucide-react";
 
@@ -53,7 +54,6 @@ interface HistoryEntry extends ApiResponse {
 export default function Page(): JSX.Element {
   const [status, setStatus] = useState<StatusResponse | null>(null);
   const [statusError, setStatusError] = useState<string | null>(null);
-  const [telemetry, setTelemetry] = useState<DroneTelemetry | null>(null);
   const [latest, setLatest] = useState<ApiResponse | null>(null);
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [loading, setLoading] = useState(false);
@@ -62,6 +62,8 @@ export default function Page(): JSX.Element {
   const [logsOpen, setLogsOpen] = useState(false);
 
   const gatewayUrl = useMemo(() => GATEWAY_URL, []);
+  const { telemetry, connected: telemConnected } =
+    useDroneTelemetryWs(gatewayUrl);
   const droneLink: DroneLinkInfo | null = telemetry?.link ?? null;
 
   useEffect(() => {
@@ -87,30 +89,6 @@ export default function Page(): JSX.Element {
 
     fetchStatus();
     const id = setInterval(fetchStatus, 10000);
-    return () => {
-      active = false;
-      clearInterval(id);
-    };
-  }, []);
-
-  useEffect(() => {
-    let active = true;
-
-    const fetchTelemetry = async () => {
-      try {
-        const res = await fetch(`${GATEWAY_URL}/drone/telemetry`, {
-          headers: { "x-request-id": newRequestId() },
-        });
-        if (!res.ok) return;
-        const data = (await res.json()) as DroneTelemetry;
-        if (active) setTelemetry(data);
-      } catch {
-        /* HUD optional when drone-http down */
-      }
-    };
-
-    fetchTelemetry();
-    const id = setInterval(fetchTelemetry, 2000);
     return () => {
       active = false;
       clearInterval(id);
@@ -188,7 +166,10 @@ export default function Page(): JSX.Element {
         <div className="grid min-w-0 grid-cols-1 gap-4 lg:grid-cols-3">
           <div className="min-w-0 space-y-4 lg:col-span-2">
             <motion.div className="card">
-              <DroneHud telemetry={telemetry} />
+              <AttitudeHud
+                telemetry={telemetry}
+                connected={telemConnected}
+              />
             </motion.div>
 
             <motion.div className="card">

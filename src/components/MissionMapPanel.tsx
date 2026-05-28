@@ -1,10 +1,13 @@
 "use client";
 
 import L from "leaflet";
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import type { DroneMission, DroneTelemetry } from "./types";
 import "leaflet/dist/leaflet.css";
-import { Map } from "lucide-react";
+import { Map, Crosshair } from "lucide-react";
+
+const INITIAL_ZOOM = 18;
+const DEFAULT_CENTER: [number, number] = [23.558, 120.473];
 
 function newRequestId(): string {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
@@ -23,14 +26,8 @@ export function MissionMapPanel({ gatewayUrl, telemetry }: Props): JSX.Element {
   const mapRef = useRef<L.Map | null>(null);
   const droneMarkerRef = useRef<L.CircleMarker | null>(null);
   const missionLayerRef = useRef<L.LayerGroup | null>(null);
+  const userInteractedRef = useRef(false);
   const [mission, setMission] = useState<DroneMission | null>(null);
-
-  const center = useMemo<[number, number]>(() => {
-    if (telemetry?.lat_deg != null && telemetry?.lon_deg != null) {
-      return [telemetry.lat_deg, telemetry.lon_deg];
-    }
-    return [23.558, 120.473];
-  }, [telemetry?.lat_deg, telemetry?.lon_deg]);
 
   useEffect(() => {
     let active = true;
@@ -56,26 +53,47 @@ export function MissionMapPanel({ gatewayUrl, telemetry }: Props): JSX.Element {
 
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
-    const map = L.map(containerRef.current, { zoomControl: true }).setView(center, 15);
+
+    const start =
+      telemetry?.lat_deg != null && telemetry?.lon_deg != null
+        ? ([telemetry.lat_deg, telemetry.lon_deg] as [number, number])
+        : DEFAULT_CENTER;
+
+    const map = L.map(containerRef.current, { zoomControl: true }).setView(
+      start,
+      INITIAL_ZOOM
+    );
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
       attribution: "&copy; OpenStreetMap",
       maxZoom: 19,
     }).addTo(map);
     missionLayerRef.current = L.layerGroup().addTo(map);
     mapRef.current = map;
+
+    const markUser = () => {
+      userInteractedRef.current = true;
+    };
+    map.on("zoomstart", markUser);
+    map.on("dragstart", markUser);
+
     return () => {
+      map.off("zoomstart", markUser);
+      map.off("dragstart", markUser);
       map.remove();
       mapRef.current = null;
       missionLayerRef.current = null;
       droneMarkerRef.current = null;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- init map once
   }, []);
 
+  // First fix on drone: pan only (keep zoom). Never override after user pans/zooms.
   useEffect(() => {
     const map = mapRef.current;
-    if (!map) return;
-    map.setView(center, map.getZoom(), { animate: true });
-  }, [center]);
+    if (!map || userInteractedRef.current) return;
+    if (telemetry?.lat_deg == null || telemetry?.lon_deg == null) return;
+    map.panTo([telemetry.lat_deg, telemetry.lon_deg], { animate: false });
+  }, [telemetry?.lat_deg, telemetry?.lon_deg]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -99,16 +117,14 @@ export function MissionMapPanel({ gatewayUrl, telemetry }: Props): JSX.Element {
           .bindTooltip(`WP ${w.seq} · ${w.alt_m.toFixed(0)} m`)
           .addTo(layer);
       });
-      if (latlngs.length > 1) {
-        map.fitBounds(L.latLngBounds(latlngs), { padding: [24, 24], maxZoom: 17 });
-      }
     }
 
     if (telemetry?.lat_deg != null && telemetry?.lon_deg != null) {
+      const latlng: L.LatLngExpression = [telemetry.lat_deg, telemetry.lon_deg];
       if (droneMarkerRef.current) {
-        droneMarkerRef.current.setLatLng([telemetry.lat_deg, telemetry.lon_deg]);
+        droneMarkerRef.current.setLatLng(latlng);
       } else {
-        droneMarkerRef.current = L.circleMarker([telemetry.lat_deg, telemetry.lon_deg], {
+        droneMarkerRef.current = L.circleMarker(latlng, {
           radius: 10,
           color: "#34d399",
           fillColor: "#10b981",
@@ -121,9 +137,15 @@ export function MissionMapPanel({ gatewayUrl, telemetry }: Props): JSX.Element {
     }
   }, [mission, telemetry?.lat_deg, telemetry?.lon_deg]);
 
+  const centerOnDrone = () => {
+    const map = mapRef.current;
+    if (!map || telemetry?.lat_deg == null || telemetry?.lon_deg == null) return;
+    map.setView([telemetry.lat_deg, telemetry.lon_deg], map.getZoom(), { animate: true });
+  };
+
   return (
     <div className="space-y-2">
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <Map className="h-4 w-4 text-cyan-400" />
         <h2 className="text-sm font-semibold">Mission map</h2>
         {mission?.waypoints?.length ? (
@@ -134,6 +156,15 @@ export function MissionMapPanel({ gatewayUrl, telemetry }: Props): JSX.Element {
         ) : (
           <span className="text-[11px] text-slate-500">No mission on link yet</span>
         )}
+        <button
+          type="button"
+          className="outline ml-auto flex items-center gap-1 text-[11px]"
+          onClick={centerOnDrone}
+          disabled={telemetry?.lat_deg == null}
+        >
+          <Crosshair className="h-3 w-3" />
+          Center drone
+        </button>
       </div>
       <div
         ref={containerRef}
