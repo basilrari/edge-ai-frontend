@@ -2,7 +2,7 @@
 
 import React, { useMemo, useState } from "react";
 import clsx from "clsx";
-import { Loader2, Trash2, Upload } from "lucide-react";
+import { Loader2, Trash2, Upload, XCircle } from "lucide-react";
 import { DashboardCard } from "./DashboardCard";
 import type { MissionLeg, MissionOverviewStats } from "../../types/drone";
 import type { DroneMission } from "../types";
@@ -18,12 +18,13 @@ import {
   type MissionPlannerDraft,
   type PlannerWaypoint,
 } from "../../lib/missionPlanner";
-import { uploadMission } from "../../lib/gateway";
+import { clearDroneMission, uploadMission } from "../../lib/gateway";
 
 interface Props {
   draft: MissionPlannerDraft;
   onDraftChange: (draft: MissionPlannerDraft) => void;
   onMissionUploaded: () => void;
+  onDroneMissionCleared: () => void;
   onDroneMission: DroneMission | null;
   droneMissionLoading: boolean;
   droneMissionError: string | null;
@@ -43,25 +44,24 @@ function StatBlock({ label, value }: { label: string; value: string }) {
   );
 }
 
-function newWaypointId(): string {
-  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
-    return crypto.randomUUID();
-  }
-  return `wp-${Date.now()}-${Math.random().toString(16).slice(2)}`;
-}
-
 export function MissionPlannerCard({
   draft,
   onDraftChange,
   onMissionUploaded,
+  onDroneMissionCleared,
   onDroneMission,
   droneMissionLoading,
   droneMissionError,
   groundspeedMps,
 }: Props): JSX.Element {
   const [uploading, setUploading] = useState(false);
+  const [clearingDrone, setClearingDrone] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [uploadSuccess, setUploadSuccess] = useState<string | null>(null);
+  const [clearDroneError, setClearDroneError] = useState<string | null>(null);
+  const [clearDroneSuccess, setClearDroneSuccess] = useState<string | null>(
+    null
+  );
 
   const previewMission = useMemo(
     () => draftToPreviewMission(draft),
@@ -92,6 +92,29 @@ export function MissionPlannerCard({
       ...draft,
       waypoints: draft.waypoints.filter((w) => w.id !== id),
     });
+  };
+
+  const handleClearPlan = () => {
+    setUploadError(null);
+    setUploadSuccess(null);
+    onDraftChange({ ...draft, waypoints: [] });
+  };
+
+  const handleClearDroneMission = async () => {
+    setClearingDrone(true);
+    setClearDroneError(null);
+    setClearDroneSuccess(null);
+    try {
+      await clearDroneMission();
+      setClearDroneSuccess("Mission cleared on flight controller");
+      onDroneMissionCleared();
+    } catch (e) {
+      setClearDroneError(
+        e instanceof Error ? e.message : "Failed to clear drone mission"
+      );
+    } finally {
+      setClearingDrone(false);
+    }
   };
 
   const handleUpload = async () => {
@@ -242,10 +265,40 @@ export function MissionPlannerCard({
         )}
       </div>
 
+      <div className="grid grid-cols-2 gap-2">
+        <button
+          type="button"
+          className="flex items-center justify-center gap-2 rounded-md border border-dash-border bg-dash-bg/60 px-3 py-2 text-xs text-dash-muted transition hover:border-dash-amber/40 hover:text-dash-text disabled:cursor-not-allowed disabled:opacity-40"
+          disabled={draft.waypoints.length === 0 || uploading || clearingDrone}
+          onClick={handleClearPlan}
+        >
+          <XCircle className="h-3.5 w-3.5" />
+          Clear plan
+        </button>
+        <button
+          type="button"
+          className="flex items-center justify-center gap-2 rounded-md border border-rose-500/30 bg-rose-950/20 px-3 py-2 text-xs text-rose-300 transition hover:border-rose-500/50 hover:bg-rose-950/35 disabled:cursor-not-allowed disabled:opacity-40"
+          disabled={
+            droneLegs.length === 0 ||
+            droneMissionLoading ||
+            uploading ||
+            clearingDrone
+          }
+          onClick={handleClearDroneMission}
+        >
+          {clearingDrone ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          ) : (
+            <Trash2 className="h-3.5 w-3.5" />
+          )}
+          Clear drone mission
+        </button>
+      </div>
+
       <button
         type="button"
         className="primary send-drone-btn w-full py-3 text-sm"
-        disabled={uploading || draft.waypoints.length === 0}
+        disabled={uploading || clearingDrone || draft.waypoints.length === 0}
         onClick={handleUpload}
       >
         {uploading ? (
@@ -269,6 +322,17 @@ export function MissionPlannerCard({
       {uploadSuccess ? (
         <p className="rounded-md border border-emerald-500/30 bg-emerald-950/20 px-3 py-2 text-xs text-emerald-300">
           {uploadSuccess}
+        </p>
+      ) : null}
+
+      {clearDroneError ? (
+        <p className="rounded-md border border-rose-500/30 bg-rose-950/30 px-3 py-2 text-xs text-rose-300">
+          {clearDroneError}
+        </p>
+      ) : null}
+      {clearDroneSuccess ? (
+        <p className="rounded-md border border-emerald-500/30 bg-emerald-950/20 px-3 py-2 text-xs text-emerald-300">
+          {clearDroneSuccess}
         </p>
       ) : null}
 

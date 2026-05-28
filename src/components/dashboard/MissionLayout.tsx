@@ -27,7 +27,11 @@ const LiveMapCard = dynamic(
   }
 );
 
-export function MissionLayout(): JSX.Element {
+export function MissionLayout({
+  maptilerApiKey,
+}: {
+  maptilerApiKey?: string;
+}): JSX.Element {
   const gatewayUrl = GATEWAY_URL;
   const { telemetry } = useTelemetry(gatewayUrl);
   const {
@@ -62,6 +66,10 @@ export function MissionLayout(): JSX.Element {
     setPlannerDraft(DEFAULT_PLANNER_DRAFT);
   }, [reloadMission]);
 
+  const handleDroneMissionCleared = useCallback(() => {
+    reloadMission();
+  }, [reloadMission]);
+
   return (
     <AppShell pageTitle="Mission">
       <div className="mx-auto flex max-w-[1680px] flex-col gap-3">
@@ -78,7 +86,8 @@ export function MissionLayout(): JSX.Element {
               onMapClick={handleMapClick}
               heightPx={520}
               mapMaxZoom={MAP_MAX_ZOOM}
-              initialZoom={20}
+              maptilerApiKey={maptilerApiKey}
+              initialZoom={18}
             />
           </div>
           <div className="xl:col-span-2">
@@ -86,6 +95,7 @@ export function MissionLayout(): JSX.Element {
               draft={plannerDraft}
               onDraftChange={setPlannerDraft}
               onMissionUploaded={handleMissionUploaded}
+              onDroneMissionCleared={handleDroneMissionCleared}
               onDroneMission={mission}
               droneMissionLoading={missionLoading}
               droneMissionError={missionError}

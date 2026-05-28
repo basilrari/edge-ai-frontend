@@ -1,7 +1,7 @@
 "use client";
 
 import L from "leaflet";
-import React, { useCallback, useEffect, useRef } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Crosshair, Minus, Navigation, Plus } from "lucide-react";
 import clsx from "clsx";
 import "leaflet/dist/leaflet.css";
@@ -9,7 +9,7 @@ import { DashboardCard } from "./DashboardCard";
 import type { Telemetry, Waypoint } from "../../types/drone";
 import type { PlannerWaypoint } from "../../lib/missionPlanner";
 import { fmtLinkKind } from "../../lib/format";
-import { addSatelliteBasemap } from "../../lib/mapBasemap";
+import { addSatelliteBasemap, type BasemapProvider } from "../../lib/mapBasemap";
 import { MAP_MAX_ZOOM } from "../../lib/mapConstants";
 
 interface Props {
@@ -23,6 +23,7 @@ interface Props {
   onMapClick?: (lat: number, lng: number) => void;
   heightPx?: number;
   mapMaxZoom?: number;
+  maptilerApiKey?: string;
   initialZoom?: number;
 }
 
@@ -41,8 +42,11 @@ export function LiveMapCard({
   onMapClick,
   heightPx = DEFAULT_HEIGHT_PX,
   mapMaxZoom = MAP_MAX_ZOOM,
+  maptilerApiKey,
   initialZoom = DEFAULT_INITIAL_ZOOM,
 }: Props): JSX.Element {
+  const [basemapProvider, setBasemapProvider] =
+    useState<BasemapProvider>("esri");
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const activeLayerRef = useRef<L.LayerGroup | null>(null);
@@ -80,7 +84,7 @@ export function LiveMapCard({
       inertiaDeceleration: 2800,
     }).setView(center, initialZoom);
 
-    addSatelliteBasemap(map, mapMaxZoom);
+    addSatelliteBasemap(map, mapMaxZoom, maptilerApiKey, setBasemapProvider);
     L.control.scale({ imperial: false, maxWidth: 120 }).addTo(map);
 
     activeLayerRef.current = L.layerGroup().addTo(map);
@@ -101,8 +105,7 @@ export function LiveMapCard({
       droneRef.current = null;
       operatorRef.current = null;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [mapMaxZoom, maptilerApiKey, initialZoom]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -254,7 +257,7 @@ export function LiveMapCard({
       headerRight={
         plannerMode ? (
           <span className="text-[10px] font-medium text-dash-amber">
-            Click map to add waypoints · zoom to ~20 m
+            Click map to add waypoints
           </span>
         ) : null
       }
@@ -280,6 +283,10 @@ export function LiveMapCard({
                 <span className="text-dash-muted">{linkLabel}</span>
               </>
             ) : null}
+            <span className="text-dash-border"> · </span>
+            <span className="text-dash-muted">
+              {basemapProvider === "maptiler" ? "MapTiler" : "Esri"}
+            </span>
           </div>
           {(showOperator || plannerWaypoints.length > 0) && (
             <div className="rounded-md border border-dash-border bg-dash-panel/95 px-2.5 py-1.5 text-[10px] text-dash-muted backdrop-blur-sm">

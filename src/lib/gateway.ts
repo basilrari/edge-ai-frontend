@@ -43,9 +43,50 @@ export async function uploadMission(
     headers: gatewayJsonHeaders(),
     body: JSON.stringify(body),
   });
-  const data = (await res.json()) as MissionUploadResponse;
+
+  const text = await res.text();
+  let data: MissionUploadResponse;
+  try {
+    data = text ? (JSON.parse(text) as MissionUploadResponse) : { ok: false };
+  } catch {
+    throw new Error(
+      res.ok
+        ? "Upload returned invalid JSON"
+        : `Upload failed (${res.status}): ${text || "empty response — restart gateway and drone-http"}`
+    );
+  }
+
   if (!res.ok || !data.ok) {
     throw new Error(data.error ?? `upload status ${res.status}`);
+  }
+  return data;
+}
+
+export interface MissionClearResponse {
+  ok: boolean;
+  error?: string;
+}
+
+export async function clearDroneMission(): Promise<MissionClearResponse> {
+  const res = await fetch(`${GATEWAY_URL}/drone/mission/clear`, {
+    method: "POST",
+    headers: gatewayJsonHeaders(),
+  });
+
+  const text = await res.text();
+  let data: MissionClearResponse;
+  try {
+    data = text ? (JSON.parse(text) as MissionClearResponse) : { ok: false };
+  } catch {
+    throw new Error(
+      res.ok
+        ? "Clear mission returned invalid JSON"
+        : `Clear mission failed (${res.status}): ${text || "empty response — restart gateway and drone-http"}`
+    );
+  }
+
+  if (!res.ok || !data.ok) {
+    throw new Error(data.error ?? `clear mission status ${res.status}`);
   }
   return data;
 }

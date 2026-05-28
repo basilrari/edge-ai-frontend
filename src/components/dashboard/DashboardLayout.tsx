@@ -26,7 +26,11 @@ const LiveMapCard = dynamic(
   }
 );
 
-export function DashboardLayout(): JSX.Element {
+export function DashboardLayout({
+  maptilerApiKey,
+}: {
+  maptilerApiKey?: string;
+}): JSX.Element {
   const gatewayUrl = GATEWAY_URL;
   const { telemetry, secondsSinceUpdate } = useTelemetry(gatewayUrl);
   const {
@@ -93,6 +97,7 @@ export function DashboardLayout(): JSX.Element {
               telemetry={telemetry}
               heightPx={320}
               mapMaxZoom={MAP_MAX_ZOOM}
+              maptilerApiKey={maptilerApiKey}
             />
           </div>
         </div>
