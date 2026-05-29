@@ -8,7 +8,6 @@ import "leaflet/dist/leaflet.css";
 import { DashboardCard } from "./DashboardCard";
 import type { Telemetry, Waypoint } from "../../types/drone";
 import type { PlannerWaypoint } from "../../lib/missionPlanner";
-import { fmtBatteryPowerBadge } from "../../lib/format";
 import { addSatelliteBasemap } from "../../lib/mapBasemap";
 import { MAP_MAX_ZOOM } from "../../lib/mapConstants";
 
@@ -244,13 +243,6 @@ export function LiveMapCard({
     });
   }, [telemetry.lat, telemetry.lng, onFollowChange, initialZoom]);
 
-  const powerBadge = fmtBatteryPowerBadge(
-    telemetry.batteryVoltageV,
-    telemetry.batteryCurrentA,
-    telemetry.batteryPowerW,
-    telemetry.batteryRemainingPct
-  );
-
   return (
     <DashboardCard
       title="Live Map"
@@ -270,17 +262,8 @@ export function LiveMapCard({
       >
         <div ref={containerRef} className="absolute inset-0 z-0" />
 
-        <div className="pointer-events-none absolute left-3 top-3 z-[400] flex flex-col gap-2">
-          <div className="rounded-full border border-dash-border bg-dash-panel/95 px-3 py-1.5 text-[11px] text-dash-text backdrop-blur-sm">
-            <span
-              className={
-                powerBadge.live ? "text-dash-accent" : "text-dash-muted"
-              }
-            >
-              {powerBadge.label}
-            </span>
-          </div>
-          {(showOperator || plannerWaypoints.length > 0) && (
+        {(showOperator || plannerWaypoints.length > 0) && (
+          <div className="pointer-events-none absolute left-3 top-3 z-[400]">
             <div className="rounded-md border border-dash-border bg-dash-panel/95 px-2.5 py-1.5 text-[10px] text-dash-muted backdrop-blur-sm">
               <span className="mr-2 inline-flex items-center gap-1">
                 <span className="inline-block h-2 w-2 rounded-full bg-dash-accent" />
@@ -299,8 +282,8 @@ export function LiveMapCard({
                 </span>
               ) : null}
             </div>
-          )}
-        </div>
+          </div>
+        )}
 
         <div className="absolute right-3 top-3 z-[400] flex flex-col gap-1">
           {showFollow ? (

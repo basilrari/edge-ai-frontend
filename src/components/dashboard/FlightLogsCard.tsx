@@ -27,7 +27,7 @@ export function FlightLogsCard({ entries, loading, error }: Props): JSX.Element 
 
   return (
     <DashboardCard title="Flight Logs" bodyClassName="overflow-hidden p-0">
-      <div className="max-h-[280px] overflow-y-auto">
+      <div className="max-h-[280px] overflow-y-auto dash-scroll">
         {error && (
           <p className="border-b border-dash-border px-3 py-2 text-xs text-dash-amber">
             {error}
@@ -55,7 +55,7 @@ export function FlightLogsCard({ entries, loading, error }: Props): JSX.Element 
               <span className={clsx("shrink-0 uppercase", levelClass(e.level))}>
                 [{e.level}]
               </span>
-              <span className="min-w-0 break-words text-dash-text">{e.message}</span>
+              <span className="min-w-0 shrink text-dash-text">{e.message}</span>
             </li>
           ))}
         </ul>
