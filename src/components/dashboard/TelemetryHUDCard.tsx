@@ -4,6 +4,7 @@ import React from "react";
 import { DashboardCard } from "./DashboardCard";
 import type { Telemetry } from "../../types/drone";
 import { fmtHeading, fmtInt, fmtNum } from "../../lib/format";
+import { useTimeDisplayContext } from "./TimeDisplayProvider";
 
 interface Props {
   telemetry: Telemetry;
@@ -47,12 +48,8 @@ export function TelemetryHUDCard({
   secondsSinceUpdate,
   fillHeight = false,
 }: Props): JSX.Element {
-  const lastTime = new Date(telemetry.lastUpdateMs).toLocaleTimeString("en-US", {
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: true,
-  });
+  const { formatLogTime } = useTimeDisplayContext();
+  const lastTime = formatLogTime(telemetry.lastUpdateMs);
 
   const speedSub =
     telemetry.speed != null

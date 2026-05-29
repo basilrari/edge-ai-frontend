@@ -22,21 +22,40 @@ export function fmtLinkKind(kind: string | null | undefined): string | null {
 }
 
 /** Map overlay: pack V / A / W (+ optional %) from MAVLink SYS_STATUS. */
+export function normalizeBatteryVoltageV(
+  voltageV: number | null | undefined
+): number | null {
+  if (voltageV == null || !Number.isFinite(voltageV)) return null;
+  let v = voltageV;
+  // Raw millivolts leaked into the volts field (e.g. 12600).
+  if (v >= 1000) v /= 1000;
+  // Legacy backend sent centivolts (12600 mV / 100 = 126).
+  if (v > 60) v /= 10;
+  if (v <= 0 || v > 60) return null;
+  return v;
+}
+
+/** Map overlay: pack V / A / W (+ optional %) from MAVLink SYS_STATUS. */
 export function fmtBatteryPowerBadge(
   voltageV: number | null | undefined,
   currentA: number | null | undefined,
   powerW: number | null | undefined,
   remainingPct: number | null | undefined
 ): { label: string; live: boolean } {
+  const normalizedV = normalizeBatteryVoltageV(voltageV);
   const parts: string[] = [];
-  if (voltageV != null && Number.isFinite(voltageV)) {
-    parts.push(`${voltageV.toFixed(1)} V`);
+  if (normalizedV != null) {
+    parts.push(`${normalizedV.toFixed(1)} V`);
   }
   if (currentA != null && Number.isFinite(currentA)) {
     parts.push(`${currentA.toFixed(1)} A`);
   }
-  if (powerW != null && Number.isFinite(powerW)) {
-    parts.push(`${Math.round(powerW)} W`);
+  const computedPower =
+    normalizedV != null && currentA != null && Number.isFinite(currentA)
+      ? normalizedV * currentA
+      : powerW;
+  if (computedPower != null && Number.isFinite(computedPower)) {
+    parts.push(`${Math.round(computedPower)} W`);
   }
   if (remainingPct != null && Number.isFinite(remainingPct)) {
     parts.push(`${Math.round(remainingPct)}%`);

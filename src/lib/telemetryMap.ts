@@ -1,11 +1,20 @@
 import type { DroneTelemetry } from "../components/types";
 import type { Telemetry } from "../types/drone";
+import { normalizeBatteryVoltageV } from "./format";
 
 /** Fields the dashboard can show; `null` = not available from drone-http / MAVLink yet. */
 export function mapDroneTelemetryToHud(live: DroneTelemetry | null): Telemetry {
   const ts = live?.ts_ms ?? Date.now();
   const mode = live?.mode ?? null;
   const armed = live?.armed ?? null;
+  const batteryVoltageV = normalizeBatteryVoltageV(live?.battery_voltage_v);
+  const batteryCurrentA = live?.battery_current_a ?? null;
+  const batteryPowerW =
+    batteryVoltageV != null &&
+    batteryCurrentA != null &&
+    Number.isFinite(batteryCurrentA)
+      ? batteryVoltageV * batteryCurrentA
+      : (live?.battery_power_w ?? null);
 
   return {
     altitude: live?.alt_rel_m ?? null,
@@ -30,9 +39,9 @@ export function mapDroneTelemetryToHud(live: DroneTelemetry | null): Telemetry {
     homeLat: live?.home_lat_deg ?? null,
     homeLng: live?.home_lon_deg ?? null,
     homeAltM: live?.home_alt_m ?? null,
-    batteryVoltageV: live?.battery_voltage_v ?? null,
-    batteryCurrentA: live?.battery_current_a ?? null,
-    batteryPowerW: live?.battery_power_w ?? null,
+    batteryVoltageV,
+    batteryCurrentA,
+    batteryPowerW,
     batteryRemainingPct: live?.battery_remaining_pct ?? null,
     link: live?.link ?? null,
     hasFix: live?.ok ?? false,

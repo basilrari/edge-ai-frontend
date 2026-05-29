@@ -4,17 +4,25 @@ import React, { useMemo, useState } from "react";
 import clsx from "clsx";
 import { Download, Pause, Play, Search } from "lucide-react";
 import { AppShell } from "./AppShell";
+import { useTimeDisplayContext } from "./TimeDisplayProvider";
 import { useLogsStream } from "../../hooks/useLogsStream";
 import { useLlmLogs } from "../../hooks/useLlmLogs";
 import { GATEWAY_URL } from "../../lib/gateway";
 import type { FlightLogEntry, LlmLogEntry, MavlinkLogEntry } from "../types";
 
-function fmtUtc(tsMs: number): string {
-  return new Date(tsMs).toISOString().slice(11, 19);
-}
-
-function fmtUtcDate(tsMs: number): string {
-  return new Date(tsMs).toISOString().slice(0, 10);
+function flightToCsv(
+  entries: FlightLogEntry[],
+  formatLogTime: (tsMs: number) => string
+): string {
+  const lines = ["time,level,event,data"];
+  for (const e of entries) {
+    const { event, data } = parseFlightRow(e);
+    const esc = (s: string) => `"${s.replace(/"/g, '""')}"`;
+    lines.push(
+      `${esc(formatLogTime(e.ts_ms))},${esc(e.level)},${esc(event)},${esc(data)}`
+    );
+  }
+  return lines.join("\n");
 }
 
 function parseFlightRow(entry: FlightLogEntry): { event: string; data: string } {
@@ -46,18 +54,6 @@ function downloadText(filename: string, content: string): void {
   a.download = filename;
   a.click();
   URL.revokeObjectURL(url);
-}
-
-function flightToCsv(entries: FlightLogEntry[]): string {
-  const lines = ["time_utc,level,event,data"];
-  for (const e of entries) {
-    const { event, data } = parseFlightRow(e);
-    const esc = (s: string) => `"${s.replace(/"/g, '""')}"`;
-    lines.push(
-      `${esc(fmtUtc(e.ts_ms))},${esc(e.level)},${esc(event)},${esc(data)}`
-    );
-  }
-  return lines.join("\n");
 }
 
 function PanelShell({
@@ -115,6 +111,7 @@ function LlmOutputPanel({
   loading: boolean;
   error: string | null;
 }): JSX.Element {
+  const { formatLogTime, formatLogDate, label } = useTimeDisplayContext();
   const history = useMemo(() => [...entries].reverse(), [entries]);
   const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);
 
@@ -209,7 +206,7 @@ function LlmOutputPanel({
                       >
                         <div className="flex items-center gap-2">
                           <span className="shrink-0 font-mono text-[10px] text-dash-muted">
-                            {fmtUtc(entry.ts_ms)}
+                            {formatLogTime(entry.ts_ms)}
                           </span>
                           {entry.action_taken ? (
                             <span className="text-[10px] text-dash-purple">
@@ -231,7 +228,7 @@ function LlmOutputPanel({
               <div className="flex min-h-0 flex-1 flex-col">
                 <div className="flex shrink-0 items-center gap-3 border-b border-dash-border px-3 py-1.5 text-[10px] text-dash-muted">
                   <span>
-                    {fmtUtcDate(selected.ts_ms)} {fmtUtc(selected.ts_ms)} UTC
+                    {formatLogDate(selected.ts_ms)} {formatLogTime(selected.ts_ms)} {label}
                   </span>
                   {selected.model ? (
                     <span className="font-mono">{selected.model}</span>
@@ -259,6 +256,7 @@ function FlightEventsPanel({
   connected: boolean;
   error: string | null;
 }): JSX.Element {
+  const { formatLogTime, label } = useTimeDisplayContext();
   const rows = useMemo(() => [...entries].reverse(), [entries]);
 
   return (
@@ -280,7 +278,9 @@ function FlightEventsPanel({
           type="button"
           className="inline-flex items-center gap-1.5 text-[11px] text-dash-muted hover:text-dash-text"
           disabled={entries.length === 0}
-          onClick={() => downloadText("flight-log.csv", flightToCsv(entries))}
+          onClick={() =>
+            downloadText("flight-log.csv", flightToCsv(entries, formatLogTime))
+          }
         >
           <Download className="h-3.5 w-3.5" />
           Download Flight Log (CSV)
@@ -302,7 +302,7 @@ function FlightEventsPanel({
           <table className="allow-wrap w-full table-fixed border-collapse font-mono text-[11px]">
             <thead className="sticky top-0 bg-dash-panel text-left text-[10px] uppercase tracking-wide text-dash-muted">
               <tr>
-                <th className="w-[7.5rem] px-3 py-2 font-medium">Time (UTC)</th>
+                <th className="w-[7.5rem] px-3 py-2 font-medium">Time ({label})</th>
                 <th className="w-[5.5rem] px-3 py-2 font-medium">Event</th>
                 <th className="px-3 py-2 font-medium">Data</th>
               </tr>
@@ -316,7 +316,7 @@ function FlightEventsPanel({
                     className="allow-wrap border-t border-dash-border/50 hover:bg-dash-bg/40"
                   >
                     <td className="whitespace-nowrap px-3 py-1.5 align-top text-dash-muted">
-                      {fmtUtc(e.ts_ms)}
+                      {formatLogTime(e.ts_ms)}
                     </td>
                     <td className="allow-wrap px-3 py-1.5 align-top text-dash-blue">
                       {event}
@@ -342,6 +342,7 @@ function PixhawkLogsPanel({
   entries: MavlinkLogEntry[];
   connected: boolean;
 }): JSX.Element {
+  const { formatLogTime, label } = useTimeDisplayContext();
   const [paused, setPaused] = useState(false);
   const [frozenEntries, setFrozenEntries] = useState<MavlinkLogEntry[]>([]);
   const [filter, setFilter] = useState("");
@@ -385,7 +386,7 @@ function PixhawkLogsPanel({
   const exportLines = entries
     .map(
       (e) =>
-        `${fmtUtc(e.ts_ms)}\t${e.msg_id}\t${e.msg_name}\t${e.value.replace(/\t/g, " ")}`
+        `${formatLogTime(e.ts_ms)}\t${e.msg_id}\t${e.msg_name}\t${e.value.replace(/\t/g, " ")}`
     )
     .join("\n");
 
@@ -485,7 +486,7 @@ function PixhawkLogsPanel({
           <table className="w-full border-collapse font-mono text-[11px]">
             <thead className="sticky top-0 bg-dash-panel text-left text-[10px] uppercase tracking-wide text-dash-muted">
               <tr>
-                <th className="px-3 py-2 font-medium">Time (UTC)</th>
+                <th className="px-3 py-2 font-medium">Time ({label})</th>
                 <th className="px-3 py-2 font-medium">Message ID</th>
                 <th className="px-3 py-2 font-medium">Message</th>
                 <th className="px-3 py-2 font-medium">Value</th>
@@ -498,7 +499,7 @@ function PixhawkLogsPanel({
                   className="border-t border-dash-border/50 hover:bg-dash-bg/40"
                 >
                   <td className="whitespace-nowrap px-3 py-1.5 text-dash-muted">
-                    {fmtUtc(e.ts_ms)}
+                    {formatLogTime(e.ts_ms)}
                   </td>
                   <td className="px-3 py-1.5 text-dash-muted">{e.msg_id}</td>
                   <td className="px-3 py-1.5 text-dash-accent">{e.msg_name}</td>

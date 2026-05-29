@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { ChevronLeft } from "lucide-react";
 import { fmtBatteryPowerBadge, fmtLinkKind } from "../../lib/format";
+import { useTimeDisplayContext } from "./TimeDisplayProvider";
 
 interface Props {
   pageTitle?: string;
@@ -32,25 +33,15 @@ export function DashboardNavbar({
     batteryPowerW,
     batteryRemainingPct
   );
-  const [utc, setUtc] = useState("");
+  const { label: tzLabel, formatClock } = useTimeDisplayContext();
+  const [clock, setClock] = useState("");
 
   useEffect(() => {
-    const tick = () => {
-      const d = new Date();
-      setUtc(
-        d.toLocaleTimeString("en-US", {
-          timeZone: "UTC",
-          hour: "2-digit",
-          minute: "2-digit",
-          second: "2-digit",
-          hour12: true,
-        })
-      );
-    };
+    const tick = () => setClock(formatClock());
     tick();
     const id = setInterval(tick, 1000);
     return () => clearInterval(id);
-  }, []);
+  }, [formatClock]);
 
   return (
     <header className="flex h-12 shrink-0 items-center justify-between border-b border-dash-border bg-dash-panel px-5">
@@ -88,7 +79,7 @@ export function DashboardNavbar({
           </span>
         </span>
         <span className="font-mono text-[11px] font-medium text-dash-muted">
-          UTC {utc}
+          {tzLabel} {clock}
         </span>
         <div className="flex h-8 w-8 items-center justify-center rounded-full bg-dash-accent/15 text-[11px] font-semibold text-dash-accent ring-1 ring-dash-accent/30">
           OP

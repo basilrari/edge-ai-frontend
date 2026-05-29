@@ -5,6 +5,7 @@ import clsx from "clsx";
 import { usePathname } from "next/navigation";
 import { DashboardNavbar } from "./DashboardNavbar";
 import { DashboardSidebar } from "./DashboardSidebar";
+import { TimeDisplayProvider } from "./TimeDisplayProvider";
 import { useTelemetry } from "../../hooks/useTelemetry";
 import { GATEWAY_URL } from "../../lib/gateway";
 import { fmtLinkKind } from "../../lib/format";
@@ -27,8 +28,9 @@ export function AppShell({
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   return (
-    <div className="dashboard-app flex h-screen flex-col overflow-hidden bg-dash-bg text-dash-text">
-      <div className="flex min-h-0 flex-1">
+    <TimeDisplayProvider>
+      <div className="dashboard-app flex h-screen flex-col overflow-hidden bg-dash-bg text-dash-text">
+        <div className="flex min-h-0 flex-1">
         <DashboardSidebar
           collapsed={sidebarCollapsed}
           onToggleCollapse={() => setSidebarCollapsed((c) => !c)}
@@ -61,6 +63,7 @@ export function AppShell({
           </main>
         </div>
       </div>
-    </div>
+      </div>
+    </TimeDisplayProvider>
   );
 }
