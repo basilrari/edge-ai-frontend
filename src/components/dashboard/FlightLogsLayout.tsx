@@ -115,29 +115,55 @@ function LlmOutputPanel({
   loading: boolean;
   error: string | null;
 }): JSX.Element {
-  const latest = entries.length > 0 ? entries[entries.length - 1] : null;
+  const history = useMemo(() => [...entries].reverse(), [entries]);
+  const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);
+
+  const selected = useMemo(() => {
+    if (history.length === 0) return null;
+    if (selectedRequestId) {
+      return history.find((e) => e.request_id === selectedRequestId) ?? history[0];
+    }
+    return history[0];
+  }, [history, selectedRequestId]);
+
+  React.useEffect(() => {
+    const latestId = history[0]?.request_id;
+    if (!latestId) return;
+    setSelectedRequestId((prev) => {
+      if (!prev) return latestId;
+      return history.some((e) => e.request_id === prev) ? prev : latestId;
+    });
+  }, [history]);
+
   const displayJson = useMemo(
-    () => prettyJson(latest?.llm_tool_json),
-    [latest?.llm_tool_json]
+    () => prettyJson(selected?.llm_tool_json),
+    [selected?.llm_tool_json]
   );
+
+  const promptPreview = (prompt: string): string => {
+    const oneLine = prompt.replace(/\s+/g, " ").trim();
+    return oneLine.length > 48 ? `${oneLine.slice(0, 48)}…` : oneLine;
+  };
 
   return (
     <PanelShell
       title="LLM Parameter Output"
       accent="purple"
       headerRight={
-        latest?.model ? (
-          <span className="font-mono text-[10px] text-dash-muted">{latest.model}</span>
+        history.length > 0 ? (
+          <span className="text-[10px] text-dash-muted">
+            {history.length} {history.length === 1 ? "output" : "outputs"}
+          </span>
         ) : null
       }
       footer={
-        latest ? (
+        selected ? (
           <button
             type="button"
             className="inline-flex items-center gap-1.5 text-[11px] text-dash-muted hover:text-dash-text"
             onClick={() =>
               downloadText(
-                `llm-output-${latest.request_id.slice(0, 8)}.json`,
+                `llm-output-${selected.request_id.slice(0, 8)}.json`,
                 displayJson
               )
             }
@@ -154,32 +180,79 @@ function LlmOutputPanel({
             {error}
           </p>
         )}
-        {loading && !latest && (
+        {loading && history.length === 0 && (
           <p className="px-4 py-6 text-center text-xs text-dash-muted">
             Waiting for LLM infer requests…
           </p>
         )}
-        {!loading && !latest && !error && (
+        {!loading && history.length === 0 && !error && (
           <p className="px-4 py-6 text-center text-xs text-dash-muted">
             No LLM outputs yet. Send a mission prompt from the dashboard.
           </p>
         )}
-        {latest ? (
-          <div className="min-h-0 flex-1 overflow-y-auto p-3">
-            <p className="mb-2 text-[10px] text-dash-muted">
-              {fmtUtcDate(latest.ts_ms)} {fmtUtc(latest.ts_ms)} UTC
-              {latest.action_taken ? (
-                <span className="ml-2 text-dash-purple">→ {latest.action_taken}</span>
-              ) : null}
-            </p>
-            <p className="mb-3 line-clamp-2 text-[11px] text-dash-muted">
-              Prompt: {latest.prompt}
-            </p>
-            <pre className="overflow-x-auto rounded-md border border-dash-border bg-[#0b0e14] p-3 font-mono text-[11px] leading-relaxed text-dash-text">
-              {displayJson}
-            </pre>
-          </div>
-        ) : null}
+        {history.length > 0 && (
+          <>
+            <div className="shrink-0 border-b border-dash-border">
+              <p className="px-3 py-1.5 text-[10px] font-medium uppercase tracking-wide text-dash-muted">
+                History
+              </p>
+              <ul className="max-h-[140px] overflow-y-auto">
+                {history.map((entry) => {
+                  const active = entry.request_id === selected?.request_id;
+                  return (
+                    <li key={entry.request_id}>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedRequestId(entry.request_id)}
+                        className={clsx(
+                          "w-full border-t border-dash-border/50 px-3 py-2 text-left transition-colors",
+                          active
+                            ? "bg-dash-purple/10"
+                            : "hover:bg-dash-bg/50"
+                        )}
+                      >
+                        <div className="flex items-baseline justify-between gap-2">
+                          <span className="shrink-0 font-mono text-[10px] text-dash-muted">
+                            {fmtUtc(entry.ts_ms)}
+                          </span>
+                          {entry.action_taken ? (
+                            <span className="truncate text-[10px] text-dash-purple">
+                              {entry.action_taken}
+                            </span>
+                          ) : null}
+                        </div>
+                        <p className="mt-0.5 truncate text-[10px] text-dash-text">
+                          {promptPreview(entry.prompt)}
+                        </p>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+
+            {selected ? (
+              <div className="min-h-0 flex-1 overflow-y-auto p-3">
+                <div className="mb-2 flex items-center justify-between gap-2">
+                  <p className="text-[10px] text-dash-muted">
+                    {fmtUtcDate(selected.ts_ms)} {fmtUtc(selected.ts_ms)} UTC
+                  </p>
+                  {selected.model ? (
+                    <span className="truncate font-mono text-[10px] text-dash-muted">
+                      {selected.model}
+                    </span>
+                  ) : null}
+                </div>
+                <p className="mb-2 text-[10px] leading-snug text-dash-muted">
+                  {selected.prompt}
+                </p>
+                <pre className="max-h-[240px] overflow-x-auto overflow-y-auto rounded-md border border-dash-border bg-[#0b0e14] p-2 font-mono text-[10px] leading-relaxed text-dash-text">
+                  {displayJson}
+                </pre>
+              </div>
+            ) : null}
+          </>
+        )}
       </div>
     </PanelShell>
   );
@@ -437,7 +510,7 @@ export function FlightLogsLayout(): JSX.Element {
           </p>
         </div>
 
-        <div className="grid min-h-0 grid-cols-1 gap-3 xl:grid-cols-3">
+        <div className="grid min-h-0 grid-cols-1 gap-3 xl:grid-cols-[1fr_2fr_3fr]">
           <LlmOutputPanel entries={llmEntries} loading={llmLoading} error={llmError} />
           <FlightEventsPanel
             entries={flightEntries}

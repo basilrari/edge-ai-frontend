@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type {
   FlightLogEntry,
   LogWsMessage,
   MavlinkLogEntry,
 } from "../components/types";
+import { newRequestId } from "../lib/gateway";
 
 function httpToWs(httpUrl: string): string {
   return httpUrl.replace(/^https:/, "wss:").replace(/^http:/, "ws:");
@@ -19,6 +20,40 @@ function appendCapped<T>(prev: T[], item: T, max: number): T[] {
   return next.length > max ? next.slice(next.length - max) : next;
 }
 
+async function fetchLogSnapshot(gatewayUrl: string): Promise<{
+  flight: FlightLogEntry[];
+  mavlink: MavlinkLogEntry[];
+  httpError: string | null;
+}> {
+  const headers = { "x-request-id": newRequestId() };
+  let flight: FlightLogEntry[] = [];
+  let mavlink: MavlinkLogEntry[] = [];
+  let httpError: string | null = null;
+
+  try {
+    const [flightRes, mavlinkRes] = await Promise.all([
+      fetch(`${gatewayUrl}/drone/logs`, { headers }),
+      fetch(`${gatewayUrl}/drone/logs/mavlink`, { headers }),
+    ]);
+    if (flightRes.ok) {
+      const data = (await flightRes.json()) as { entries?: FlightLogEntry[] };
+      flight = data.entries ?? [];
+    } else {
+      httpError = `flight logs HTTP ${flightRes.status}`;
+    }
+    if (mavlinkRes.ok) {
+      const data = (await mavlinkRes.json()) as { entries?: MavlinkLogEntry[] };
+      mavlink = data.entries ?? [];
+    } else if (!httpError) {
+      httpError = `mavlink logs HTTP ${mavlinkRes.status}`;
+    }
+  } catch (e) {
+    httpError = e instanceof Error ? e.message : "failed to load logs";
+  }
+
+  return { flight, mavlink, httpError };
+}
+
 export function useLogsStream(gatewayUrl: string): {
   flightEntries: FlightLogEntry[];
   mavlinkEntries: MavlinkLogEntry[];
@@ -29,6 +64,11 @@ export function useLogsStream(gatewayUrl: string): {
   const [mavlinkEntries, setMavlinkEntries] = useState<MavlinkLogEntry[]>([]);
   const [connected, setConnected] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const connectedRef = useRef(false);
+
+  useEffect(() => {
+    connectedRef.current = connected;
+  }, [connected]);
 
   useEffect(() => {
     const base = gatewayUrl.replace(/\/$/, "");
@@ -36,6 +76,20 @@ export function useLogsStream(gatewayUrl: string): {
     let active = true;
     let socket: WebSocket | null = null;
     let retryTimer: ReturnType<typeof setTimeout> | null = null;
+    let pollTimer: ReturnType<typeof setInterval> | null = null;
+
+    const loadHttp = async () => {
+      const snap = await fetchLogSnapshot(base);
+      if (!active) return;
+      if (snap.flight.length > 0) setFlightEntries(snap.flight);
+      if (snap.mavlink.length > 0) setMavlinkEntries(snap.mavlink);
+      if (snap.httpError && !connectedRef.current) setError(snap.httpError);
+    };
+
+    void loadHttp();
+    pollTimer = setInterval(() => {
+      if (!connectedRef.current) void loadHttp();
+    }, 5000);
 
     const connect = () => {
       if (!active) return;
@@ -53,9 +107,10 @@ export function useLogsStream(gatewayUrl: string): {
         try {
           const msg = JSON.parse(String(ev.data)) as LogWsMessage & {
             detail?: string;
+            error?: string;
           };
-          if ("detail" in msg && msg.detail) {
-            setError(msg.detail);
+          if (msg.detail || msg.error) {
+            setError(msg.detail ?? msg.error ?? "logs stream error");
             return;
           }
           switch (msg.type) {
@@ -98,6 +153,7 @@ export function useLogsStream(gatewayUrl: string): {
     return () => {
       active = false;
       if (retryTimer) clearTimeout(retryTimer);
+      if (pollTimer) clearInterval(pollTimer);
       socket?.close();
     };
   }, [gatewayUrl]);
