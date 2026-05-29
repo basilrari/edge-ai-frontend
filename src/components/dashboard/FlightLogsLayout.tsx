@@ -1,0 +1,452 @@
+"use client";
+
+import React, { useMemo, useState } from "react";
+import clsx from "clsx";
+import { Download, Pause, Play, Search } from "lucide-react";
+import { AppShell } from "./AppShell";
+import { useLogsStream } from "../../hooks/useLogsStream";
+import { useLlmLogs } from "../../hooks/useLlmLogs";
+import { GATEWAY_URL } from "../../lib/gateway";
+import type { FlightLogEntry, LlmLogEntry, MavlinkLogEntry } from "../types";
+
+function fmtUtc(tsMs: number): string {
+  return new Date(tsMs).toISOString().slice(11, 19);
+}
+
+function fmtUtcDate(tsMs: number): string {
+  return new Date(tsMs).toISOString().slice(0, 10);
+}
+
+function parseFlightRow(entry: FlightLogEntry): { event: string; data: string } {
+  const msg = entry.message.trim();
+  if (msg.startsWith("FC: ")) {
+    return { event: "STATUSTEXT", data: msg.slice(4) };
+  }
+  const colon = msg.indexOf(": ");
+  if (colon > 0 && colon < 48) {
+    return { event: msg.slice(0, colon), data: msg.slice(colon + 2) };
+  }
+  return { event: entry.level.toUpperCase(), data: msg };
+}
+
+function prettyJson(raw: string | null | undefined): string {
+  if (!raw) return "—";
+  try {
+    return JSON.stringify(JSON.parse(raw), null, 2);
+  } catch {
+    return raw;
+  }
+}
+
+function downloadText(filename: string, content: string): void {
+  const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function flightToCsv(entries: FlightLogEntry[]): string {
+  const lines = ["time_utc,level,event,data"];
+  for (const e of entries) {
+    const { event, data } = parseFlightRow(e);
+    const esc = (s: string) => `"${s.replace(/"/g, '""')}"`;
+    lines.push(
+      `${esc(fmtUtc(e.ts_ms))},${esc(e.level)},${esc(event)},${esc(data)}`
+    );
+  }
+  return lines.join("\n");
+}
+
+function PanelShell({
+  title,
+  accent,
+  headerRight,
+  children,
+  footer,
+}: {
+  title: string;
+  accent: "purple" | "blue" | "green";
+  headerRight?: React.ReactNode;
+  children: React.ReactNode;
+  footer?: React.ReactNode;
+}): JSX.Element {
+  const accentBorder = {
+    purple: "border-t-dash-purple",
+    blue: "border-t-dash-blue",
+    green: "border-t-dash-accent",
+  }[accent];
+
+  const accentText = {
+    purple: "text-dash-purple",
+    blue: "text-dash-blue",
+    green: "text-dash-accent",
+  }[accent];
+
+  return (
+    <section
+      className={clsx(
+        "dashboard-panel flex min-h-0 flex-col border-t-2",
+        accentBorder
+      )}
+    >
+      <header className="flex shrink-0 items-center justify-between gap-2 border-b border-dash-border px-4 py-2.5">
+        <h2 className={clsx("text-[11px] font-semibold uppercase tracking-[0.14em]", accentText)}>
+          {title}
+        </h2>
+        {headerRight}
+      </header>
+      <div className="min-h-0 flex-1 overflow-hidden">{children}</div>
+      {footer ? (
+        <footer className="shrink-0 border-t border-dash-border px-4 py-2">{footer}</footer>
+      ) : null}
+    </section>
+  );
+}
+
+function LlmOutputPanel({
+  entries,
+  loading,
+  error,
+}: {
+  entries: LlmLogEntry[];
+  loading: boolean;
+  error: string | null;
+}): JSX.Element {
+  const latest = entries.length > 0 ? entries[entries.length - 1] : null;
+  const displayJson = useMemo(
+    () => prettyJson(latest?.llm_tool_json),
+    [latest?.llm_tool_json]
+  );
+
+  return (
+    <PanelShell
+      title="LLM Parameter Output"
+      accent="purple"
+      headerRight={
+        latest?.model ? (
+          <span className="font-mono text-[10px] text-dash-muted">{latest.model}</span>
+        ) : null
+      }
+      footer={
+        latest ? (
+          <button
+            type="button"
+            className="inline-flex items-center gap-1.5 text-[11px] text-dash-muted hover:text-dash-text"
+            onClick={() =>
+              downloadText(
+                `llm-output-${latest.request_id.slice(0, 8)}.json`,
+                displayJson
+              )
+            }
+          >
+            <Download className="h-3.5 w-3.5" />
+            Download JSON
+          </button>
+        ) : undefined
+      }
+    >
+      <div className="flex h-full max-h-[calc(100vh-220px)] flex-col">
+        {error && (
+          <p className="border-b border-dash-border px-3 py-2 text-xs text-dash-amber">
+            {error}
+          </p>
+        )}
+        {loading && !latest && (
+          <p className="px-4 py-6 text-center text-xs text-dash-muted">
+            Waiting for LLM infer requests…
+          </p>
+        )}
+        {!loading && !latest && !error && (
+          <p className="px-4 py-6 text-center text-xs text-dash-muted">
+            No LLM outputs yet. Send a mission prompt from the dashboard.
+          </p>
+        )}
+        {latest ? (
+          <div className="min-h-0 flex-1 overflow-y-auto p-3">
+            <p className="mb-2 text-[10px] text-dash-muted">
+              {fmtUtcDate(latest.ts_ms)} {fmtUtc(latest.ts_ms)} UTC
+              {latest.action_taken ? (
+                <span className="ml-2 text-dash-purple">→ {latest.action_taken}</span>
+              ) : null}
+            </p>
+            <p className="mb-3 line-clamp-2 text-[11px] text-dash-muted">
+              Prompt: {latest.prompt}
+            </p>
+            <pre className="overflow-x-auto rounded-md border border-dash-border bg-[#0b0e14] p-3 font-mono text-[11px] leading-relaxed text-dash-text">
+              {displayJson}
+            </pre>
+          </div>
+        ) : null}
+      </div>
+    </PanelShell>
+  );
+}
+
+function FlightEventsPanel({
+  entries,
+  connected,
+  error,
+}: {
+  entries: FlightLogEntry[];
+  connected: boolean;
+  error: string | null;
+}): JSX.Element {
+  const rows = useMemo(() => [...entries].reverse(), [entries]);
+
+  return (
+    <PanelShell
+      title="Flight Logs"
+      accent="blue"
+      headerRight={
+        <span
+          className={clsx(
+            "text-[10px] font-medium",
+            connected ? "text-dash-blue" : "text-dash-muted"
+          )}
+        >
+          {connected ? "Live" : "Reconnecting…"}
+        </span>
+      }
+      footer={
+        <button
+          type="button"
+          className="inline-flex items-center gap-1.5 text-[11px] text-dash-muted hover:text-dash-text"
+          disabled={entries.length === 0}
+          onClick={() => downloadText("flight-log.csv", flightToCsv(entries))}
+        >
+          <Download className="h-3.5 w-3.5" />
+          Download Flight Log (CSV)
+        </button>
+      }
+    >
+      <div className="max-h-[calc(100vh-220px)] overflow-y-auto">
+        {error && (
+          <p className="border-b border-dash-border px-3 py-2 text-xs text-dash-amber">
+            {error}
+          </p>
+        )}
+        {rows.length === 0 && (
+          <p className="px-4 py-6 text-center text-xs text-dash-muted">
+            No flight events yet. Logs appear when drone-http connects and runs commands.
+          </p>
+        )}
+        {rows.length > 0 && (
+          <table className="w-full border-collapse font-mono text-[11px]">
+            <thead className="sticky top-0 bg-dash-panel text-left text-[10px] uppercase tracking-wide text-dash-muted">
+              <tr>
+                <th className="px-3 py-2 font-medium">Time (UTC)</th>
+                <th className="px-3 py-2 font-medium">Event</th>
+                <th className="px-3 py-2 font-medium">Data</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((e, i) => {
+                const { event, data } = parseFlightRow(e);
+                return (
+                  <tr
+                    key={`${e.ts_ms}-${i}`}
+                    className="border-t border-dash-border/50 hover:bg-dash-bg/40"
+                  >
+                    <td className="whitespace-nowrap px-3 py-1.5 text-dash-muted">
+                      {fmtUtc(e.ts_ms)}
+                    </td>
+                    <td className="px-3 py-1.5 text-dash-blue">{event}</td>
+                    <td className="min-w-0 break-words px-3 py-1.5 text-dash-text">
+                      {data}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
+      </div>
+    </PanelShell>
+  );
+}
+
+function PixhawkLogsPanel({
+  entries,
+  connected,
+}: {
+  entries: MavlinkLogEntry[];
+  connected: boolean;
+}): JSX.Element {
+  const [paused, setPaused] = useState(false);
+  const [filter, setFilter] = useState("");
+  const [search, setSearch] = useState("");
+
+  const rows = useMemo(() => {
+    let list = [...entries];
+    if (filter) {
+      list = list.filter((e) => e.msg_name === filter);
+    }
+    if (search.trim()) {
+      const q = search.trim().toLowerCase();
+      list = list.filter(
+        (e) =>
+          e.msg_name.toLowerCase().includes(q) ||
+          e.value.toLowerCase().includes(q)
+      );
+    }
+    return paused ? list : list.slice(-200).reverse();
+  }, [entries, filter, search, paused]);
+
+  const messageTypes = useMemo(() => {
+    const set = new Set(entries.map((e) => e.msg_name));
+    return Array.from(set).sort();
+  }, [entries]);
+
+  const exportLines = entries
+    .map(
+      (e) =>
+        `${fmtUtc(e.ts_ms)}\t${e.msg_id}\t${e.msg_name}\t${e.value.replace(/\t/g, " ")}`
+    )
+    .join("\n");
+
+  return (
+    <PanelShell
+      title="Pixhawk Logs"
+      accent="green"
+      headerRight={
+        <div className="flex items-center gap-2">
+          <div className="relative hidden sm:block">
+            <Search className="pointer-events-none absolute left-2 top-1/2 h-3 w-3 -translate-y-1/2 text-dash-muted" />
+            <input
+              type="search"
+              value={search}
+              onChange={(ev) => setSearch(ev.target.value)}
+              placeholder="Search…"
+              className="w-28 rounded border border-dash-border bg-dash-bg py-1 pl-7 pr-2 text-[10px] text-dash-text placeholder:text-dash-muted focus:outline-none focus:ring-1 focus:ring-dash-accent/40"
+            />
+          </div>
+          <select
+            value={filter}
+            onChange={(ev) => setFilter(ev.target.value)}
+            className="rounded border border-dash-border bg-dash-bg px-2 py-1 text-[10px] text-dash-text"
+          >
+            <option value="">All messages</option>
+            {messageTypes.map((t) => (
+              <option key={t} value={t}>
+                {t}
+              </option>
+            ))}
+          </select>
+          <button
+            type="button"
+            onClick={() => setPaused((p) => !p)}
+            className="inline-flex items-center gap-1 rounded border border-dash-border px-2 py-1 text-[10px] text-dash-muted hover:text-dash-text"
+          >
+            {paused ? (
+              <>
+                <Play className="h-3 w-3" /> Resume
+              </>
+            ) : (
+              <>
+                <Pause className="h-3 w-3" /> Pause
+              </>
+            )}
+          </button>
+        </div>
+      }
+      footer={
+        <div className="flex items-center justify-between gap-2">
+          <button
+            type="button"
+            className="inline-flex items-center gap-1.5 text-[11px] text-dash-muted hover:text-dash-text"
+            disabled={entries.length === 0}
+            onClick={() => downloadText("pixhawk-log.txt", exportLines)}
+          >
+            <Download className="h-3.5 w-3.5" />
+            Download Log
+          </button>
+          <span
+            className={clsx(
+              "flex items-center gap-1.5 text-[10px] font-medium",
+              connected ? "text-dash-accent" : "text-dash-muted"
+            )}
+          >
+            <span
+              className={clsx(
+                "h-1.5 w-1.5 rounded-full",
+                connected ? "bg-dash-accent animate-pulse" : "bg-dash-muted"
+              )}
+            />
+            {connected ? "Streaming Live" : "Offline"}
+          </span>
+        </div>
+      }
+    >
+      <div className="max-h-[calc(100vh-220px)] overflow-y-auto">
+        {rows.length === 0 && (
+          <p className="px-4 py-6 text-center text-xs text-dash-muted">
+            Waiting for MAVLink telemetry from the flight controller…
+          </p>
+        )}
+        {rows.length > 0 && (
+          <table className="w-full border-collapse font-mono text-[11px]">
+            <thead className="sticky top-0 bg-dash-panel text-left text-[10px] uppercase tracking-wide text-dash-muted">
+              <tr>
+                <th className="px-3 py-2 font-medium">Time (UTC)</th>
+                <th className="px-3 py-2 font-medium">Message ID</th>
+                <th className="px-3 py-2 font-medium">Message</th>
+                <th className="px-3 py-2 font-medium">Value</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((e, i) => (
+                <tr
+                  key={`${e.ts_ms}-${e.msg_id}-${i}`}
+                  className="border-t border-dash-border/50 hover:bg-dash-bg/40"
+                >
+                  <td className="whitespace-nowrap px-3 py-1.5 text-dash-muted">
+                    {fmtUtc(e.ts_ms)}
+                  </td>
+                  <td className="px-3 py-1.5 text-dash-muted">{e.msg_id}</td>
+                  <td className="px-3 py-1.5 text-dash-accent">{e.msg_name}</td>
+                  <td className="min-w-0 break-words px-3 py-1.5 text-dash-text">
+                    {e.value}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+    </PanelShell>
+  );
+}
+
+export function FlightLogsLayout(): JSX.Element {
+  const gatewayUrl = GATEWAY_URL;
+  const { flightEntries, mavlinkEntries, connected, error } =
+    useLogsStream(gatewayUrl);
+  const { entries: llmEntries, loading: llmLoading, error: llmError } =
+    useLlmLogs(gatewayUrl);
+
+  return (
+    <AppShell pageTitle="Flight Logs">
+      <div className="mx-auto flex max-w-[1920px] flex-col gap-3">
+        <div className="mb-1">
+          <h1 className="text-lg font-semibold text-dash-text">Flight Logs</h1>
+          <p className="text-xs text-dash-muted">
+            View LLM outputs, flight events, and live Pixhawk MAVLink messages.
+          </p>
+        </div>
+
+        <div className="grid min-h-0 grid-cols-1 gap-3 xl:grid-cols-3">
+          <LlmOutputPanel entries={llmEntries} loading={llmLoading} error={llmError} />
+          <FlightEventsPanel
+            entries={flightEntries}
+            connected={connected}
+            error={error}
+          />
+          <PixhawkLogsPanel entries={mavlinkEntries} connected={connected} />
+        </div>
+      </div>
+    </AppShell>
+  );
+}

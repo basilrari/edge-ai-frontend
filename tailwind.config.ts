@@ -21,6 +21,7 @@ const config: Config = {
           panel: "#14171D",
           accent: "#4ADE80",
           blue: "#3B82F6",
+          purple: "#A855F7",
           amber: "#FBBF24",
           border: "#1F2937",
           text: "#FFFFFF",

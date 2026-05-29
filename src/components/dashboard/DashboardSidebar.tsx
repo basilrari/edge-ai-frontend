@@ -25,7 +25,7 @@ const NAV: {
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, href: "/" },
   { id: "mission", label: "Mission", icon: Target, href: "/mission" },
   { id: "map", label: "Map", icon: Map, href: "#", disabled: true },
-  { id: "logs", label: "Flight Logs", icon: ScrollText, href: "#", disabled: true },
+  { id: "logs", label: "Flight Logs", icon: ScrollText, href: "/logs" },
   { id: "drones", label: "Drones", icon: Plane, href: "#", disabled: true },
   { id: "geofences", label: "Geofences", icon: MapPin, href: "#", disabled: true },
   { id: "settings", label: "Settings", icon: Settings, href: "#", disabled: true },

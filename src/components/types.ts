@@ -77,3 +77,24 @@ export interface FlightLogEntry {
   level: string;
   message: string;
 }
+
+export interface MavlinkLogEntry {
+  ts_ms: number;
+  msg_id: number;
+  msg_name: string;
+  value: string;
+}
+
+export interface LlmLogEntry {
+  ts_ms: number;
+  prompt: string;
+  llm_tool_json?: string | null;
+  action_taken?: string | null;
+  model?: string | null;
+  request_id: string;
+}
+
+export type LogWsMessage =
+  | { type: "snapshot"; flight: FlightLogEntry[]; mavlink: MavlinkLogEntry[] }
+  | { type: "flight"; entry: FlightLogEntry }
+  | { type: "mavlink"; entry: MavlinkLogEntry };
