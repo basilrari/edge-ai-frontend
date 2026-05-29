@@ -211,3 +211,37 @@ export function formatLegCoords(leg: MissionLeg): string {
   }
   return parts.length > 0 ? parts.join(" · ") : "—";
 }
+
+export interface DroneMapMarker {
+  id: number;
+  lat: number;
+  lng: number;
+  altM: number | null;
+  label: string;
+}
+
+/** Geographic markers for each on-drone mission leg with valid coordinates. */
+export function missionToDroneMapMarkers(
+  mission: DroneMission | null
+): DroneMapMarker[] {
+  return buildMissionLegs(mission)
+    .filter((leg) => leg.latDeg != null && leg.lonDeg != null)
+    .map((leg) => ({
+      id: leg.id,
+      lat: leg.latDeg!,
+      lng: leg.lonDeg!,
+      altM: leg.altM ?? null,
+      label: leg.label,
+    }));
+}
+
+/** Path polyline for the on-drone mission (nav + land waypoints in order). */
+export function missionToDroneMapPath(
+  mission: DroneMission | null
+): Array<{ lat: number; lng: number }> {
+  if (!mission?.waypoints?.length) return [];
+  return pathWaypointsInOrder(mission.waypoints).map((w) => ({
+    lat: w.lat_deg,
+    lng: w.lon_deg,
+  }));
+}

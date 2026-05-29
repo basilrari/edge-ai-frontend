@@ -8,12 +8,20 @@ import "leaflet/dist/leaflet.css";
 import { DashboardCard } from "./DashboardCard";
 import type { Telemetry, Waypoint } from "../../types/drone";
 import type { PlannerWaypoint } from "../../lib/missionPlanner";
+import type { DroneMapMarker } from "../../lib/missionUtils";
 import { addSatelliteBasemap } from "../../lib/mapBasemap";
 import { MAP_MAX_ZOOM } from "../../lib/mapConstants";
 
 interface Props {
   activeWaypoints: Waypoint[];
   plannerWaypoints?: PlannerWaypoint[];
+  /** On-drone mission markers (mission page); falls back to activeWaypoints on dashboard. */
+  dronePlanMarkers?: DroneMapMarker[];
+  dronePlanPath?: Array<{ lat: number; lng: number }>;
+  showDronePlan?: boolean;
+  showPlannerPlan?: boolean;
+  onShowDronePlanChange?: (show: boolean) => void;
+  onShowPlannerPlanChange?: (show: boolean) => void;
   telemetry: Telemetry;
   operator?: { lat: number; lng: number } | null;
   plannerMode?: boolean;
@@ -35,6 +43,12 @@ const DEFAULT_INITIAL_ZOOM = 18;
 export function LiveMapCard({
   activeWaypoints,
   plannerWaypoints = [],
+  dronePlanMarkers,
+  dronePlanPath,
+  showDronePlan = true,
+  showPlannerPlan = true,
+  onShowDronePlanChange,
+  onShowPlannerPlanChange,
   telemetry,
   operator = null,
   plannerMode = false,
@@ -57,6 +71,15 @@ export function LiveMapCard({
 
   const showOperator = operator != null;
   const showFollow = followDrone && onFollowChange != null;
+  const showLayerToggles =
+    plannerMode &&
+    onShowDronePlanChange != null &&
+    onShowPlannerPlanChange != null;
+  const hasDroneLayer =
+    dronePlanMarkers != null
+      ? dronePlanMarkers.length > 0
+      : activeWaypoints.length > 0;
+  const hasPlannerLayer = plannerWaypoints.length > 0;
 
   const center: [number, number] =
     telemetry.lat != null && telemetry.lng != null
@@ -146,32 +169,64 @@ export function LiveMapCard({
     const layer = activeLayerRef.current;
     if (!layer) return;
     layer.clearLayers();
-    if (activeWaypoints.length > 1) {
-      const latlngs = activeWaypoints.map(
-        (w) => [w.lat, w.lng] as [number, number]
-      );
-      L.polyline(latlngs, {
+    if (!showDronePlan) return;
+
+    const markers: Array<{
+      lat: number;
+      lng: number;
+      label?: string;
+      altM?: number | null;
+    }> =
+      dronePlanMarkers != null
+        ? dronePlanMarkers
+        : activeWaypoints.map((w) => ({
+            lat: w.lat,
+            lng: w.lng,
+          }));
+
+    const pathLatLngs: Array<[number, number]> =
+      dronePlanPath != null
+        ? dronePlanPath.map((p) => [p.lat, p.lng] as [number, number])
+        : activeWaypoints.map((w) => [w.lat, w.lng] as [number, number]);
+
+    if (pathLatLngs.length > 1) {
+      L.polyline(pathLatLngs, {
         color: "#3B82F6",
         weight: 3,
         opacity: 0.85,
         dashArray: "6 4",
       }).addTo(layer);
-      activeWaypoints.forEach((w) => {
-        L.circleMarker([w.lat, w.lng], {
-          radius: 6,
-          color: "#93C5FD",
-          fillColor: "#3B82F6",
-          fillOpacity: 0.85,
-          weight: 2,
-        }).addTo(layer);
-      });
     }
-  }, [activeWaypoints]);
+
+    markers.forEach((w) => {
+      const tooltip =
+        w.label != null
+          ? w.altM != null
+            ? `${w.label} · ${w.altM.toFixed(0)} m`
+            : w.label
+          : undefined;
+      const marker = L.circleMarker([w.lat, w.lng], {
+        radius: 7,
+        color: "#93C5FD",
+        fillColor: "#3B82F6",
+        fillOpacity: 0.85,
+        weight: 2,
+      }).addTo(layer);
+      if (tooltip) marker.bindTooltip(tooltip);
+    });
+  }, [
+    activeWaypoints,
+    dronePlanMarkers,
+    dronePlanPath,
+    showDronePlan,
+  ]);
 
   useEffect(() => {
     const layer = plannerLayerRef.current;
     if (!layer) return;
     layer.clearLayers();
+    if (!showPlannerPlan) return;
+
     if (plannerWaypoints.length > 1) {
       const latlngs = plannerWaypoints.map(
         (w) => [w.lat, w.lng] as [number, number]
@@ -193,7 +248,7 @@ export function LiveMapCard({
         .bindTooltip(`Plan ${i + 1} · ${w.altM.toFixed(0)} m`)
         .addTo(layer);
     });
-  }, [plannerWaypoints]);
+  }, [plannerWaypoints, showPlannerPlan]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -279,7 +334,7 @@ export function LiveMapCard({
       >
         <div ref={containerRef} className="absolute inset-0 z-0" />
 
-        {(showOperator || plannerWaypoints.length > 0) && (
+        {(showOperator || hasDroneLayer || hasPlannerLayer) && (
           <div className="pointer-events-none absolute left-3 top-3 z-[400]">
             <div className="rounded-md border border-dash-border bg-dash-panel/95 px-2.5 py-1.5 text-[10px] text-dash-muted backdrop-blur-sm">
               <span className="mr-2 inline-flex items-center gap-1">
@@ -292,15 +347,54 @@ export function LiveMapCard({
                   Operator
                 </span>
               ) : null}
-              {plannerWaypoints.length > 0 ? (
+              {hasDroneLayer && showDronePlan ? (
+                <span className="mr-2 inline-flex items-center gap-1">
+                  <span className="inline-block h-2 w-2 rounded-full bg-blue-500" />
+                  On drone
+                </span>
+              ) : null}
+              {hasPlannerLayer && showPlannerPlan ? (
                 <span className="inline-flex items-center gap-1">
                   <span className="inline-block h-2 w-2 rounded-full bg-dash-amber" />
-                  Plan
+                  New plan
                 </span>
               ) : null}
             </div>
           </div>
         )}
+
+        {showLayerToggles ? (
+          <div className="absolute bottom-3 left-3 z-[400] flex flex-wrap gap-1.5">
+            <button
+              type="button"
+              className={clsx(
+                "flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-[10px] font-medium backdrop-blur-sm transition",
+                showPlannerPlan
+                  ? "border-dash-amber/50 bg-dash-amber/15 text-dash-amber"
+                  : "border-dash-border bg-dash-panel/95 text-dash-muted hover:text-dash-text"
+              )}
+              onClick={() => onShowPlannerPlanChange?.(!showPlannerPlan)}
+              aria-pressed={showPlannerPlan}
+            >
+              <span className="inline-block h-2 w-2 rounded-full bg-dash-amber" />
+              New plan
+            </button>
+            <button
+              type="button"
+              className={clsx(
+                "flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-[10px] font-medium backdrop-blur-sm transition",
+                showDronePlan
+                  ? "border-blue-500/50 bg-blue-500/15 text-blue-300"
+                  : "border-dash-border bg-dash-panel/95 text-dash-muted hover:text-dash-text"
+              )}
+              onClick={() => onShowDronePlanChange?.(!showDronePlan)}
+              aria-pressed={showDronePlan}
+            >
+              <span className="inline-block h-2 w-2 rounded-full bg-blue-500" />
+              On drone
+            </button>
+          </div>
+        ) : null}
 
         <div className="absolute right-3 top-3 z-[400] flex flex-col gap-1">
           {showFollow ? (

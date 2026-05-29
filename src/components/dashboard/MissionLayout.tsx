@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import { AppShell } from "./AppShell";
 import { MissionPlannerCard } from "./MissionPlannerCard";
@@ -9,6 +9,10 @@ import { useMission } from "../../hooks/useMission";
 import { useOperatorLocation } from "../../hooks/useOperatorLocation";
 import { GATEWAY_URL } from "../../lib/gateway";
 import { MAP_MAX_ZOOM } from "../../lib/mapConstants";
+import {
+  missionToDroneMapMarkers,
+  missionToDroneMapPath,
+} from "../../lib/missionUtils";
 import {
   DEFAULT_PLANNER_DRAFT,
   newWaypointId,
@@ -45,6 +49,14 @@ export function MissionLayout({
   const [plannerDraft, setPlannerDraft] =
     useState<MissionPlannerDraft>(DEFAULT_PLANNER_DRAFT);
   const [followDrone, setFollowDrone] = useState(true);
+  const [showNewPlan, setShowNewPlan] = useState(true);
+  const [showDronePlan, setShowDronePlan] = useState(true);
+
+  const droneMapMarkers = useMemo(
+    () => missionToDroneMapMarkers(mission),
+    [mission]
+  );
+  const droneMapPath = useMemo(() => missionToDroneMapPath(mission), [mission]);
 
   const handleMapClick = useCallback((lat: number, lng: number) => {
     setPlannerDraft((draft) => ({
@@ -77,6 +89,12 @@ export function MissionLayout({
           <LiveMapCard
             activeWaypoints={[]}
             plannerWaypoints={plannerDraft.waypoints}
+            dronePlanMarkers={droneMapMarkers}
+            dronePlanPath={droneMapPath}
+            showDronePlan={showDronePlan}
+            showPlannerPlan={showNewPlan}
+            onShowDronePlanChange={setShowDronePlan}
+            onShowPlannerPlanChange={setShowNewPlan}
             telemetry={telemetry}
             operator={operatorPosition}
             plannerMode
