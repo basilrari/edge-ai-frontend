@@ -7,7 +7,7 @@ import {
   type MissionOverviewStats,
 } from "../types/drone";
 
-export type LegStatus = MissionLeg["status"];
+type LegStatus = MissionLeg["status"];
 
 const CMD = {
   WAYPOINT: 16,

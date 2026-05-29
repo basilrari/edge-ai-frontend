@@ -1,6 +1,6 @@
 # Frontend — For Agents
 
-Mission Control dashboard for the Jetson SAR Gateway. All UI lives under `src/components/dashboard/`; there is no legacy operator UI.
+Mission Control dashboard for the Jetson SAR Gateway. All UI lives under `src/components/dashboard/`.
 
 ---
 
@@ -11,72 +11,58 @@ Mission Control dashboard for the Jetson SAR Gateway. All UI lives under `src/co
 
 ---
 
+## Routes
+
+| Path | Layout | Purpose |
+|------|--------|---------|
+| `/` | `DashboardLayout` | Mission prompt, map, HUD, mission overview |
+| `/mission` | `MissionLayout` | Mission planner + map |
+| `/logs` | `FlightLogsLayout` | LLM history, flight events, Pixhawk MAVLink (WS) |
+
+All dashboard components are `"use client"`.
+
+---
+
 ## Folder structure
 
 ```
 frontend/src/
 ├── app/
-│   ├── layout.tsx
-│   ├── page.tsx              # Renders <DashboardLayout />
-│   └── globals.css           # Dashboard theme, Leaflet z-index fixes
+│   ├── layout.tsx, globals.css
+│   ├── page.tsx
+│   ├── mission/page.tsx
+│   └── logs/page.tsx
 ├── components/
-│   ├── dashboard/
-│   │   ├── DashboardLayout.tsx   # Main grid, data hooks, infer handler
-│   │   ├── DashboardNavbar.tsx   # Online status, link type, battery
-│   │   ├── DashboardSidebar.tsx
-│   │   ├── MissionPromptCard.tsx # POST /infer
-│   │   ├── LiveMapCard.tsx       # Leaflet map + waypoints + drone marker
-│   │   ├── TelemetryHUDCard.tsx
-│   │   ├── MissionOverviewCard.tsx
-│   │   ├── FlightLogsCard.tsx
-│   │   ├── BottomStatusBar.tsx
-│   │   └── DashboardCard.tsx
-│   └── types.ts              # ApiResponse, DroneTelemetry, DroneMission, etc.
-├── hooks/
-│   ├── useTelemetry.ts       # WS + REST telemetry → HUD model
-│   ├── useDroneTelemetryWs.ts
-│   ├── useMission.ts
-│   └── useFlightLogs.ts
-├── lib/
-│   ├── gateway.ts            # GATEWAY_URL, sendInferPrompt
-│   ├── telemetryMap.ts       # DroneTelemetry → Telemetry HUD fields
-│   ├── missionUtils.ts       # Mission legs + stats from waypoints
-│   ├── format.ts             # Display formatters
-│   └── constants.ts          # Brand, prompt placeholder, char limit
-└── types/drone.ts            # Telemetry, MissionLeg, Waypoint view types
+│   ├── dashboard/          # AppShell, navbar, sidebar, cards, FlightLogsLayout
+│   └── types.ts            # ApiResponse, DroneTelemetry, log types
+├── hooks/                  # telemetry, mission, logs stream, LLM logs, geolocation
+├── lib/                    # gateway client, map, mission utils, formatters
+└── types/drone.ts          # Telemetry, MissionLeg, Waypoint view types
 ```
-
-Single route: `/` → `DashboardLayout`. All dashboard components are `"use client"`.
 
 ---
 
 ## Data flow
 
-1. **Telemetry**: `useDroneTelemetryWs` connects to `WS ${GATEWAY_URL}/drone/ws`; `useTelemetry` also polls `GET /drone/telemetry` every 5s as fallback. Mapped via `telemetryMap.ts`.
-2. **Mission**: `useMission` polls `GET /drone/mission` every 5s → waypoints on map + Mission Overview legs.
-3. **Flight logs**: `useFlightLogs` polls `GET /drone/logs` every 3s.
-4. **Prompt**: `MissionPromptCard` → `sendInferPrompt()` → `POST /infer` with `{"Infer": {"prompt": "..."}}`. Success/error shown inline.
-
----
-
-## HUD fields not on the MAVLink link yet
-
-Documented in `telemetryMap.ts` (`TELEMETRY_NOT_FROM_DRONE`): battery, GPS sat count, distance from home, home coordinates, RC signal, gimbal/camera. These render as `—` until drone-http exposes them.
+1. **Telemetry**: `useDroneTelemetryWs` → `WS /drone/ws`; `useTelemetry` also polls `GET /drone/telemetry` every 5s. Mapped via `telemetryMap.ts`. Battery V/A/W shown in **navbar**.
+2. **Mission**: `useMission` polls `GET /drone/mission` every 5s.
+3. **Flight logs** (dedicated page): `useLogsStream` → `WS /drone/logs/ws` with HTTP fallback; `useLlmLogs` → `GET /logs/llm`.
+4. **Prompt**: `MissionPromptCard` → `POST /infer` with `{"Infer": {"prompt": "..."}}`. Gateway **auto-applies** drone tools (no separate approval UI).
 
 ---
 
 ## Styling
 
-- Dark theme only (`--dash-*` CSS variables in `globals.css`, Tailwind `dash` colors in `tailwind.config.ts`).
-- Use `dashboard-panel`, `metric-tile`, `prompt-input`, `button.primary` — do not reintroduce legacy `.card` / `.badge` classes from the old UI.
+- Dark theme (`--dash-*` in `globals.css`, Tailwind `dash` colors).
+- `.dashboard-app` uses `white-space: nowrap` on text; scroll inside `.dash-scroll` panels.
+- Maps: Leaflet in `LiveMapCard` (satellite + label overlay via `mapBasemap.ts`).
 
 ---
 
-## Conventions for agents
+## Conventions
 
-1. **Gateway URL**: `process.env.NEXT_PUBLIC_GATEWAY_URL ?? "http://localhost:3000"` via `lib/gateway.ts`.
+1. **Gateway URL**: `process.env.NEXT_PUBLIC_GATEWAY_URL ?? "http://localhost:3000"` in `lib/gateway.ts`.
 2. **Types**: Keep `components/types.ts` aligned with gateway and drone-http JSON.
-3. **New UI**: Add components under `components/dashboard/`; wire data in `DashboardLayout.tsx`.
-4. **Maps**: Use Leaflet in `LiveMapCard` (Carto Dark basemap); cap Leaflet z-index inside `.dashboard-panel`.
+3. **New UI**: Add under `components/dashboard/`; wire in the relevant layout.
 
-For gateway API shapes, see **gateway/AGENTS.md**.
+See **gateway/AGENTS.md** for API shapes.

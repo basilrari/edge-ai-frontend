@@ -53,14 +53,6 @@ export interface Waypoint {
   order: number;
 }
 
-export interface DroneStatus {
-  id: string;
-  name: string;
-  model: string;
-  firmware: string;
-  isOnline: boolean;
-}
-
 export const EMPTY_MISSION_STATS: MissionOverviewStats = {
   waypointCount: 0,
   totalDistanceKm: 0,

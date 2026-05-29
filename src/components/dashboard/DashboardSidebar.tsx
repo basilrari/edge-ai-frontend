@@ -6,11 +6,8 @@ import clsx from "clsx";
 import {
   ChevronLeft,
   LayoutDashboard,
-  Map,
-  MapPin,
   Plane,
   ScrollText,
-  Settings,
   Target,
 } from "lucide-react";
 import { BRAND_NAME, SIDEBAR_DRONE } from "../../lib/constants";
@@ -20,15 +17,10 @@ const NAV: {
   label: string;
   icon: typeof LayoutDashboard;
   href: string;
-  disabled?: boolean;
 }[] = [
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, href: "/" },
   { id: "mission", label: "Mission", icon: Target, href: "/mission" },
-  { id: "map", label: "Map", icon: Map, href: "#", disabled: true },
   { id: "logs", label: "Flight Logs", icon: ScrollText, href: "/logs" },
-  { id: "drones", label: "Drones", icon: Plane, href: "#", disabled: true },
-  { id: "geofences", label: "Geofences", icon: MapPin, href: "#", disabled: true },
-  { id: "settings", label: "Settings", icon: Settings, href: "#", disabled: true },
 ];
 
 interface Props {
@@ -70,25 +62,14 @@ export function DashboardSidebar({
       </div>
 
       <nav className="flex flex-1 flex-col gap-0.5 p-2 pt-3">
-        {NAV.map(({ id, label, icon: Icon, href, disabled }) => {
-          const active = !disabled && isActive(href, activePath);
+        {NAV.map(({ id, label, icon: Icon, href }) => {
+          const active = isActive(href, activePath);
           const className = clsx(
             "flex items-center gap-2.5 rounded-md px-3 py-2.5 text-left text-[13px] transition-colors",
             active
               ? "bg-dash-accent/10 font-medium text-dash-accent"
-              : disabled
-                ? "cursor-not-allowed text-dash-muted/40"
-                : "text-dash-muted hover:bg-dash-panel hover:text-dash-text"
+              : "text-dash-muted hover:bg-dash-panel hover:text-dash-text"
           );
-
-          if (disabled) {
-            return (
-              <span key={id} className={className} title={collapsed ? label : undefined}>
-                <Icon className="h-[18px] w-[18px] shrink-0 text-dash-muted/40" />
-                {!collapsed && label}
-              </span>
-            );
-          }
 
           return (
             <Link

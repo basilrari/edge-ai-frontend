@@ -43,8 +43,3 @@ function headingToCardinal(deg: number): string {
   const dirs = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
   return dirs[Math.round(deg / 45) % 8];
 }
-
-/** HUD fields not provided by the current backend. */
-export const TELEMETRY_NOT_FROM_DRONE = [
-  "GPS satellite count (no GPS_RAW_INT on link)",
-] as const;
