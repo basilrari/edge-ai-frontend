@@ -88,7 +88,7 @@ function PanelShell({
   return (
     <section
       className={clsx(
-        "dashboard-panel flex min-h-0 flex-col border-t-2",
+        "dashboard-panel flex h-full min-h-0 flex-col border-t-2",
         accentBorder
       )}
     >
@@ -140,11 +140,6 @@ function LlmOutputPanel({
     [selected?.llm_tool_json]
   );
 
-  const promptPreview = (prompt: string): string => {
-    const oneLine = prompt.replace(/\s+/g, " ").trim();
-    return oneLine.length > 48 ? `${oneLine.slice(0, 48)}…` : oneLine;
-  };
-
   return (
     <PanelShell
       title="LLM Parameter Output"
@@ -174,9 +169,9 @@ function LlmOutputPanel({
         ) : undefined
       }
     >
-      <div className="flex h-full max-h-[calc(100vh-220px)] flex-col">
+      <div className="flex h-full min-h-0 flex-col">
         {error && (
-          <p className="border-b border-dash-border px-3 py-2 text-xs text-dash-amber">
+          <p className="shrink-0 border-b border-dash-border px-3 py-2 text-xs text-dash-amber">
             {error}
           </p>
         )}
@@ -192,11 +187,11 @@ function LlmOutputPanel({
         )}
         {history.length > 0 && (
           <>
-            <div className="shrink-0 border-b border-dash-border">
-              <p className="px-3 py-1.5 text-[10px] font-medium uppercase tracking-wide text-dash-muted">
+            <div className="flex min-h-0 flex-1 flex-col border-b border-dash-border">
+              <p className="shrink-0 px-3 py-1.5 text-[10px] font-medium uppercase tracking-wide text-dash-muted">
                 History
               </p>
-              <ul className="max-h-[140px] overflow-y-auto">
+              <ul className="dash-scroll min-h-0 flex-1 overflow-auto">
                 {history.map((entry) => {
                   const active = entry.request_id === selected?.request_id;
                   return (
@@ -204,6 +199,7 @@ function LlmOutputPanel({
                       <button
                         type="button"
                         onClick={() => setSelectedRequestId(entry.request_id)}
+                        title={entry.prompt}
                         className={clsx(
                           "w-full border-t border-dash-border/50 px-3 py-2 text-left transition-colors",
                           active
@@ -211,19 +207,19 @@ function LlmOutputPanel({
                             : "hover:bg-dash-bg/50"
                         )}
                       >
-                        <div className="flex items-baseline justify-between gap-2">
+                        <div className="flex items-center gap-2">
                           <span className="shrink-0 font-mono text-[10px] text-dash-muted">
                             {fmtUtc(entry.ts_ms)}
                           </span>
                           {entry.action_taken ? (
-                            <span className="truncate text-[10px] text-dash-purple">
+                            <span className="text-[10px] text-dash-purple">
                               {entry.action_taken}
                             </span>
                           ) : null}
+                          <span className="min-w-0 flex-1 text-[10px] text-dash-text">
+                            {entry.prompt.replace(/\s+/g, " ").trim()}
+                          </span>
                         </div>
-                        <p className="mt-0.5 truncate text-[10px] text-dash-text">
-                          {promptPreview(entry.prompt)}
-                        </p>
                       </button>
                     </li>
                   );
@@ -232,21 +228,17 @@ function LlmOutputPanel({
             </div>
 
             {selected ? (
-              <div className="min-h-0 flex-1 overflow-y-auto p-3">
-                <div className="mb-2 flex items-center justify-between gap-2">
-                  <p className="text-[10px] text-dash-muted">
+              <div className="flex min-h-0 flex-1 flex-col">
+                <div className="flex shrink-0 items-center gap-3 border-b border-dash-border px-3 py-1.5 text-[10px] text-dash-muted">
+                  <span>
                     {fmtUtcDate(selected.ts_ms)} {fmtUtc(selected.ts_ms)} UTC
-                  </p>
+                  </span>
                   {selected.model ? (
-                    <span className="truncate font-mono text-[10px] text-dash-muted">
-                      {selected.model}
-                    </span>
+                    <span className="font-mono">{selected.model}</span>
                   ) : null}
+                  <span className="text-dash-text">{selected.prompt}</span>
                 </div>
-                <p className="mb-2 text-[10px] leading-snug text-dash-muted">
-                  {selected.prompt}
-                </p>
-                <pre className="max-h-[240px] overflow-x-auto overflow-y-auto rounded-md border border-dash-border bg-[#0b0e14] p-2 font-mono text-[10px] leading-relaxed text-dash-text">
+                <pre className="dash-scroll min-h-0 flex-1 overflow-auto bg-[#0b0e14] p-2 font-mono text-[10px] leading-relaxed text-dash-text">
                   {displayJson}
                 </pre>
               </div>
@@ -295,7 +287,7 @@ function FlightEventsPanel({
         </button>
       }
     >
-      <div className="max-h-[calc(100vh-220px)] overflow-y-auto">
+      <div className="dash-scroll h-full min-h-0 overflow-auto">
         {error && (
           <p className="border-b border-dash-border px-3 py-2 text-xs text-dash-amber">
             {error}
@@ -327,7 +319,7 @@ function FlightEventsPanel({
                       {fmtUtc(e.ts_ms)}
                     </td>
                     <td className="px-3 py-1.5 text-dash-blue">{event}</td>
-                    <td className="min-w-0 break-words px-3 py-1.5 text-dash-text">
+                    <td className="whitespace-nowrap px-3 py-1.5 text-dash-text">
                       {data}
                     </td>
                   </tr>
@@ -349,11 +341,23 @@ function PixhawkLogsPanel({
   connected: boolean;
 }): JSX.Element {
   const [paused, setPaused] = useState(false);
+  const [frozenEntries, setFrozenEntries] = useState<MavlinkLogEntry[]>([]);
   const [filter, setFilter] = useState("");
   const [search, setSearch] = useState("");
 
+  const sourceEntries = paused ? frozenEntries : entries;
+
+  const togglePause = (): void => {
+    if (paused) {
+      setPaused(false);
+      return;
+    }
+    setFrozenEntries([...entries]);
+    setPaused(true);
+  };
+
   const rows = useMemo(() => {
-    let list = [...entries];
+    let list = [...sourceEntries];
     if (filter) {
       list = list.filter((e) => e.msg_name === filter);
     }
@@ -365,8 +369,11 @@ function PixhawkLogsPanel({
           e.value.toLowerCase().includes(q)
       );
     }
-    return paused ? list : list.slice(-200).reverse();
-  }, [entries, filter, search, paused]);
+    if (!paused) {
+      list = list.slice(-200);
+    }
+    return [...list].reverse();
+  }, [sourceEntries, filter, search, paused]);
 
   const messageTypes = useMemo(() => {
     const set = new Set(entries.map((e) => e.msg_name));
@@ -410,8 +417,13 @@ function PixhawkLogsPanel({
           </select>
           <button
             type="button"
-            onClick={() => setPaused((p) => !p)}
-            className="inline-flex items-center gap-1 rounded border border-dash-border px-2 py-1 text-[10px] text-dash-muted hover:text-dash-text"
+            onClick={togglePause}
+            className={clsx(
+              "inline-flex items-center gap-1 rounded border px-2 py-1 text-[10px]",
+              paused
+                ? "border-dash-accent/40 text-dash-accent"
+                : "border-dash-border text-dash-muted hover:text-dash-text"
+            )}
           >
             {paused ? (
               <>
@@ -439,21 +451,29 @@ function PixhawkLogsPanel({
           <span
             className={clsx(
               "flex items-center gap-1.5 text-[10px] font-medium",
-              connected ? "text-dash-accent" : "text-dash-muted"
+              paused
+                ? "text-dash-amber"
+                : connected
+                  ? "text-dash-accent"
+                  : "text-dash-muted"
             )}
           >
             <span
               className={clsx(
                 "h-1.5 w-1.5 rounded-full",
-                connected ? "bg-dash-accent animate-pulse" : "bg-dash-muted"
+                paused
+                  ? "bg-dash-amber"
+                  : connected
+                    ? "animate-pulse bg-dash-accent"
+                    : "bg-dash-muted"
               )}
             />
-            {connected ? "Streaming Live" : "Offline"}
+            {paused ? "Paused" : connected ? "Streaming Live" : "Offline"}
           </span>
         </div>
       }
     >
-      <div className="max-h-[calc(100vh-220px)] overflow-y-auto">
+      <div className="dash-scroll h-full min-h-0 overflow-auto">
         {rows.length === 0 && (
           <p className="px-4 py-6 text-center text-xs text-dash-muted">
             Waiting for MAVLink telemetry from the flight controller…
@@ -480,7 +500,7 @@ function PixhawkLogsPanel({
                   </td>
                   <td className="px-3 py-1.5 text-dash-muted">{e.msg_id}</td>
                   <td className="px-3 py-1.5 text-dash-accent">{e.msg_name}</td>
-                  <td className="min-w-0 break-words px-3 py-1.5 text-dash-text">
+                  <td className="whitespace-nowrap px-3 py-1.5 text-dash-text">
                     {e.value}
                   </td>
                 </tr>
@@ -501,16 +521,16 @@ export function FlightLogsLayout(): JSX.Element {
     useLlmLogs(gatewayUrl);
 
   return (
-    <AppShell pageTitle="Flight Logs">
-      <div className="mx-auto flex max-w-[1920px] flex-col gap-3">
-        <div className="mb-1">
-          <h1 className="text-lg font-semibold text-dash-text">Flight Logs</h1>
-          <p className="text-xs text-dash-muted">
-            View LLM outputs, flight events, and live Pixhawk MAVLink messages.
+    <AppShell pageTitle="Flight Logs" lockViewport>
+      <div className="flex h-full min-h-0 flex-col gap-2">
+        <div className="flex shrink-0 items-baseline gap-3">
+          <h1 className="text-base font-semibold text-dash-text">Flight Logs</h1>
+          <p className="text-[11px] text-dash-muted">
+            LLM outputs, flight events, and live Pixhawk MAVLink messages.
           </p>
         </div>
 
-        <div className="grid min-h-0 grid-cols-1 gap-3 xl:grid-cols-[1fr_2fr_3fr]">
+        <div className="grid min-h-0 flex-1 grid-cols-1 gap-2 xl:grid-cols-[1.5fr_1.75fr_2.75fr]">
           <LlmOutputPanel entries={llmEntries} loading={llmLoading} error={llmError} />
           <FlightEventsPanel
             entries={flightEntries}
