@@ -38,11 +38,11 @@ function StatBlock({
   value: string;
 }): JSX.Element {
   return (
-    <div className="flex items-center justify-between gap-3 rounded-md border border-dash-border bg-dash-bg/60 px-3 py-2">
-      <p className="text-[9px] font-semibold uppercase tracking-wider text-dash-muted">
+    <div className="allow-wrap min-w-0 overflow-hidden rounded-md border border-dash-border bg-dash-bg/60 px-3 py-2">
+      <p className="allow-wrap text-[9px] font-semibold uppercase tracking-wider text-dash-muted">
         {label}
       </p>
-      <p className="text-lg font-semibold tabular-nums text-dash-text">
+      <p className="allow-wrap mt-0.5 text-lg font-semibold tabular-nums text-dash-text">
         {value}
       </p>
     </div>
@@ -59,7 +59,7 @@ export function MissionOverviewCard({
 
   return (
     <DashboardCard title="Mission Overview" bodyClassName="flex flex-col gap-3 p-3">
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+      <div className="grid min-w-0 grid-cols-2 gap-2 xl:grid-cols-4">
         <StatBlock label="Waypoints" value={String(stats.waypointCount)} />
         <StatBlock
           label="Total Distance"
