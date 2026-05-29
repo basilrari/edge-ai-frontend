@@ -8,6 +8,7 @@ import { fmtHeading, fmtInt, fmtNum } from "../../lib/format";
 interface Props {
   telemetry: Telemetry;
   secondsSinceUpdate: number;
+  fillHeight?: boolean;
 }
 
 function MetricTile({
@@ -44,6 +45,7 @@ function fmtDeg(v: number | null | undefined): string {
 export function TelemetryHUDCard({
   telemetry,
   secondsSinceUpdate,
+  fillHeight = false,
 }: Props): JSX.Element {
   const lastTime = new Date(telemetry.lastUpdateMs).toLocaleTimeString("en-US", {
     hour: "2-digit",
@@ -60,7 +62,11 @@ export function TelemetryHUDCard({
         : undefined;
 
   return (
-    <DashboardCard title="HUD / Telemetry" bodyClassName="p-3">
+    <DashboardCard
+      title="HUD / Telemetry"
+      className={fillHeight ? "h-full min-h-0" : undefined}
+      bodyClassName="p-3"
+    >
       <div className="grid grid-cols-3 gap-2">
         <MetricTile
           label="Altitude"

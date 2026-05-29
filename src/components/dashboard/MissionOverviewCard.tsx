@@ -11,6 +11,7 @@ interface Props {
   stats: MissionOverviewStats;
   loading?: boolean;
   error?: string | null;
+  fillHeight?: boolean;
 }
 
 function LegDot({ status }: { status: MissionLeg["status"] }): JSX.Element {
@@ -54,11 +55,19 @@ export function MissionOverviewCard({
   stats,
   loading,
   error,
+  fillHeight = false,
 }: Props): JSX.Element {
   const empty = legs.length === 0;
 
   return (
-    <DashboardCard title="Mission Overview" bodyClassName="flex flex-col gap-3 p-3">
+    <DashboardCard
+      title="Mission Overview"
+      className={fillHeight ? "h-full min-h-0" : undefined}
+      bodyClassName={clsx(
+        "flex flex-col gap-3 p-3",
+        fillHeight && "min-h-0"
+      )}
+    >
       <div className="grid min-w-0 grid-cols-2 gap-2 xl:grid-cols-4">
         <StatBlock label="Waypoints" value={String(stats.waypointCount)} />
         <StatBlock
@@ -95,7 +104,12 @@ export function MissionOverviewCard({
         </div>
       )}
 
-      <div className="max-h-[200px] overflow-y-auto rounded-md border border-dash-border bg-dash-bg/40">
+      <div
+        className={clsx(
+          "overflow-y-auto rounded-md border border-dash-border bg-dash-bg/40 dash-scroll",
+          fillHeight ? "min-h-0 flex-1" : "max-h-[200px]"
+        )}
+      >
         {loading && empty && (
           <p className="p-4 text-center text-xs text-dash-muted">
             Loading mission from drone…

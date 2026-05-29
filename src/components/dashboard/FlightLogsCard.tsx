@@ -10,6 +10,7 @@ interface Props {
   entries: FlightLogEntry[];
   loading: boolean;
   error: string | null;
+  fillHeight?: boolean;
 }
 
 function severityDotClass(level: string): string {
@@ -36,12 +37,18 @@ function SeverityDot({ level }: { level: string }): JSX.Element {
   );
 }
 
-export function FlightLogsCard({ entries, loading, error }: Props): JSX.Element {
+export function FlightLogsCard({
+  entries,
+  loading,
+  error,
+  fillHeight = false,
+}: Props): JSX.Element {
   const rows = [...entries].reverse();
 
   return (
     <DashboardCard
       title="Flight Logs"
+      className={fillHeight ? "h-full min-h-0" : undefined}
       bodyClassName="overflow-hidden p-0"
       headerRight={
         <Link
@@ -52,7 +59,12 @@ export function FlightLogsCard({ entries, loading, error }: Props): JSX.Element 
         </Link>
       }
     >
-      <div className="max-h-[280px] overflow-x-hidden overflow-y-auto dash-scroll">
+      <div
+        className={clsx(
+          "overflow-x-hidden overflow-y-auto dash-scroll",
+          fillHeight ? "h-full max-h-none" : "max-h-[280px]"
+        )}
+      >
         {error && (
           <p className="border-b border-dash-border px-3 py-2 text-xs text-dash-amber">
             {error}

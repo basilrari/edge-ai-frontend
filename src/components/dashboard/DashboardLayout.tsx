@@ -19,7 +19,7 @@ const LiveMapCard = dynamic(
   {
     ssr: false,
     loading: () => (
-      <div className="dashboard-panel flex h-[320px] items-center justify-center text-sm text-dash-muted">
+      <div className="dashboard-panel flex h-full min-h-[240px] items-center justify-center text-sm text-dash-muted">
         Loading map…
       </div>
     ),
@@ -80,9 +80,9 @@ export function DashboardLayout({
   };
 
   return (
-    <AppShell pageTitle="Mission Control">
-      <div className="mx-auto flex max-w-[1680px] flex-col gap-3">
-        <div className="grid grid-cols-1 gap-3 lg:grid-cols-5">
+    <AppShell pageTitle="Mission Control" lockViewport>
+      <div className="flex h-full min-h-0 flex-col gap-2">
+        <div className="grid min-h-0 shrink-0 grid-cols-1 gap-2 lg:grid-cols-5 lg:h-[36%] lg:min-h-[220px] lg:max-h-[340px]">
           <div className="lg:col-span-2">
             <MissionPromptCard
               onSend={handleSendPrompt}
@@ -91,37 +91,41 @@ export function DashboardLayout({
               successMessage={promptSuccess}
             />
           </div>
-          <div className="relative z-0 lg:col-span-3">
+          <div className="flex min-h-0 flex-col lg:col-span-3">
             <LiveMapCard
               activeWaypoints={waypoints}
               telemetry={telemetry}
-              heightPx={320}
+              fillHeight
               mapMaxZoom={MAP_MAX_ZOOM}
               maptilerApiKey={maptilerApiKey}
+              initialZoom={18}
             />
           </div>
         </div>
 
-        <div className="relative z-0 grid grid-cols-1 gap-3 xl:grid-cols-12">
-          <div className="xl:col-span-3">
+        <div className="grid min-h-0 flex-1 grid-cols-1 gap-2 xl:grid-cols-12">
+          <div className="flex min-h-0 flex-col xl:col-span-3">
             <TelemetryHUDCard
               telemetry={telemetry}
               secondsSinceUpdate={secondsSinceUpdate}
+              fillHeight
             />
           </div>
-          <div className="xl:col-span-6">
+          <div className="flex min-h-0 flex-col xl:col-span-6">
             <MissionOverviewCard
               legs={missionLegs}
               stats={missionStats}
               loading={missionLoading}
               error={missionError}
+              fillHeight
             />
           </div>
-          <div className="xl:col-span-3">
+          <div className="flex min-h-0 flex-col xl:col-span-3">
             <FlightLogsCard
               entries={flightLogs}
               loading={logsLoading}
               error={logsError}
+              fillHeight
             />
           </div>
         </div>

@@ -12,11 +12,19 @@ type LegStatus = MissionLeg["status"];
 const CMD = {
   WAYPOINT: 16,
   TAKEOFF: 22,
+  TAKEOFF_LOCAL: 24,
   LAND: 21,
   RTL: 20,
   SPLINE: 82,
   LOITER_TO_ALT: 31,
+  VTOL_TAKEOFF: 84,
 } as const;
+
+const TAKEOFF_COMMANDS = new Set<number>([
+  CMD.TAKEOFF,
+  CMD.TAKEOFF_LOCAL,
+  CMD.VTOL_TAKEOFF,
+]);
 
 const DEFAULT_SPEED_MPS = 5;
 
@@ -83,8 +91,23 @@ function pathDistanceM(points: MissionWaypoint[]): number {
   return total;
 }
 
-function legLabel(wp: MissionWaypoint, navIndex: number): string {
-  if (wp.command === CMD.TAKEOFF) return "Takeoff";
+function isTakeoffItem(wp: MissionWaypoint, index: number): boolean {
+  if (TAKEOFF_COMMANDS.has(wp.command)) return true;
+  // ArduPilot may re-report seq 0 takeoff as NAV_WAYPOINT at 0,0 before coords are filled in.
+  if (
+    index === 0 &&
+    wp.command === CMD.WAYPOINT &&
+    !hasValidPosition(wp) &&
+    Number.isFinite(wp.alt_m) &&
+    wp.alt_m > 0
+  ) {
+    return true;
+  }
+  return false;
+}
+
+function legLabel(wp: MissionWaypoint, navIndex: number, index: number): string {
+  if (isTakeoffItem(wp, index)) return "Takeoff";
   if (wp.command === CMD.RTL) return "Return to Home";
   if (wp.command === CMD.LAND) return "Land";
   if (
@@ -97,8 +120,8 @@ function legLabel(wp: MissionWaypoint, navIndex: number): string {
   return `CMD ${wp.command}`;
 }
 
-function legSubtitle(wp: MissionWaypoint): string | undefined {
-  if (wp.command === CMD.TAKEOFF) {
+function legSubtitle(wp: MissionWaypoint, index: number): string | undefined {
+  if (isTakeoffItem(wp, index)) {
     return `Target alt ${wp.alt_m.toFixed(0)} m`;
   }
   if (
@@ -125,19 +148,21 @@ export function buildMissionLegs(mission: DroneMission | null): MissionLeg[] {
   if (!mission?.waypoints?.length) return [];
 
   let navCount = 0;
-  return mission.waypoints.map((wp) => {
+  return mission.waypoints.map((wp, index) => {
+    const takeoff = isTakeoffItem(wp, index);
     if (
-      wp.command === CMD.WAYPOINT ||
-      wp.command === CMD.SPLINE ||
-      wp.command === CMD.LOITER_TO_ALT
+      !takeoff &&
+      (wp.command === CMD.WAYPOINT ||
+        wp.command === CMD.SPLINE ||
+        wp.command === CMD.LOITER_TO_ALT)
     ) {
       navCount += 1;
     }
     return {
       id: wp.seq,
       seq: wp.seq,
-      label: legLabel(wp, navCount),
-      subtitle: legSubtitle(wp),
+      label: legLabel(wp, navCount, index),
+      subtitle: legSubtitle(wp, index),
       latDeg: hasValidPosition(wp) ? wp.lat_deg : null,
       lonDeg: hasValidPosition(wp) ? wp.lon_deg : null,
       altM: Number.isFinite(wp.alt_m) ? wp.alt_m : null,
