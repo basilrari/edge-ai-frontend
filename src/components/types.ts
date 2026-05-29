@@ -52,6 +52,10 @@ export interface DroneTelemetry {
   home_lat_deg?: number;
   home_lon_deg?: number;
   home_alt_m?: number;
+  battery_voltage_v?: number;
+  battery_current_a?: number;
+  battery_power_w?: number;
+  battery_remaining_pct?: number;
 }
 
 export interface MissionWaypoint {

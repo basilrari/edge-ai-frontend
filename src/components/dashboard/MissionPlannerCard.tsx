@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import clsx from "clsx";
 import { Loader2, Trash2, Upload, XCircle } from "lucide-react";
 import { DashboardCard } from "./DashboardCard";
@@ -124,6 +125,17 @@ export function MissionPlannerCard({
       setConfirmClearDrone(false);
     }
   };
+
+  useEffect(() => {
+    if (!confirmClearDrone) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !clearingDrone) {
+        setConfirmClearDrone(false);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [confirmClearDrone, clearingDrone]);
 
   const handleUpload = async () => {
     setUploading(true);
@@ -304,39 +316,62 @@ export function MissionPlannerCard({
         </button>
       </div>
 
-      {confirmClearDrone ? (
-        <div className="rounded-md border border-rose-500/40 bg-rose-950/25 p-3">
-          <p className="text-xs text-rose-100">
-            Clear the mission on the flight controller? This cannot be undone
-            from the dashboard.
-          </p>
-          <div className="mt-2 flex gap-2">
-            <button
-              type="button"
-              className="flex-1 rounded-md border border-dash-border bg-dash-bg/60 px-3 py-1.5 text-xs text-dash-text transition hover:border-dash-border/80"
-              disabled={clearingDrone}
-              onClick={() => setConfirmClearDrone(false)}
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              className="flex flex-1 items-center justify-center gap-1 rounded-md border border-rose-500/50 bg-rose-950/40 px-3 py-1.5 text-xs font-medium text-rose-200 transition hover:bg-rose-950/60 disabled:cursor-not-allowed disabled:opacity-40"
-              disabled={clearingDrone}
-              onClick={handleClearDroneMissionConfirm}
-            >
-              {clearingDrone ? (
-                <>
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  Clearing…
-                </>
-              ) : (
-                "Yes, clear mission"
-              )}
-            </button>
-          </div>
-        </div>
-      ) : null}
+      {confirmClearDrone && typeof document !== "undefined"
+        ? createPortal(
+            <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+              <button
+                type="button"
+                className="absolute inset-0 bg-black/60"
+                aria-label="Dismiss"
+                disabled={clearingDrone}
+                onClick={() => setConfirmClearDrone(false)}
+              />
+              <div
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="clear-drone-title"
+                className="relative w-full max-w-sm rounded-lg border border-rose-500/40 bg-dash-bg p-4 shadow-2xl"
+              >
+                <h3
+                  id="clear-drone-title"
+                  className="text-sm font-semibold text-dash-text"
+                >
+                  Clear drone mission?
+                </h3>
+                <p className="mt-2 text-xs text-dash-muted">
+                  This removes the mission from the flight controller. It cannot
+                  be undone from the dashboard.
+                </p>
+                <div className="mt-4 flex gap-2">
+                  <button
+                    type="button"
+                    className="flex-1 rounded-md border border-dash-border bg-dash-bg/60 px-3 py-2 text-xs text-dash-text transition hover:border-dash-border/80"
+                    disabled={clearingDrone}
+                    onClick={() => setConfirmClearDrone(false)}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    className="flex flex-1 items-center justify-center gap-1 rounded-md border border-rose-500/50 bg-rose-950/40 px-3 py-2 text-xs font-medium text-rose-200 transition hover:bg-rose-950/60 disabled:cursor-not-allowed disabled:opacity-40"
+                    disabled={clearingDrone}
+                    onClick={handleClearDroneMissionConfirm}
+                  >
+                    {clearingDrone ? (
+                      <>
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        Clearing…
+                      </>
+                    ) : (
+                      "Yes, clear mission"
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>,
+            document.body
+          )
+        : null}
 
       <button
         type="button"

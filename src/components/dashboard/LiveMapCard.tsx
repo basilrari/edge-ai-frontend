@@ -8,6 +8,7 @@ import "leaflet/dist/leaflet.css";
 import { DashboardCard } from "./DashboardCard";
 import type { Telemetry, Waypoint } from "../../types/drone";
 import type { PlannerWaypoint } from "../../lib/missionPlanner";
+import { fmtBatteryPowerBadge } from "../../lib/format";
 import { addSatelliteBasemap } from "../../lib/mapBasemap";
 import { MAP_MAX_ZOOM } from "../../lib/mapConstants";
 
@@ -243,7 +244,12 @@ export function LiveMapCard({
     });
   }, [telemetry.lat, telemetry.lng, onFollowChange, initialZoom]);
 
-  const gpsLabel = telemetry.hasFix ? "GPS fix" : "Waiting for GPS";
+  const powerBadge = fmtBatteryPowerBadge(
+    telemetry.batteryVoltageV,
+    telemetry.batteryCurrentA,
+    telemetry.batteryPowerW,
+    telemetry.batteryRemainingPct
+  );
 
   return (
     <DashboardCard
@@ -268,10 +274,10 @@ export function LiveMapCard({
           <div className="rounded-full border border-dash-border bg-dash-panel/95 px-3 py-1.5 text-[11px] text-dash-text backdrop-blur-sm">
             <span
               className={
-                telemetry.hasFix ? "text-dash-accent" : "text-dash-muted"
+                powerBadge.live ? "text-dash-accent" : "text-dash-muted"
               }
             >
-              {gpsLabel}
+              {powerBadge.label}
             </span>
           </div>
           {(showOperator || plannerWaypoints.length > 0) && (

@@ -30,6 +30,10 @@ export function mapDroneTelemetryToHud(live: DroneTelemetry | null): Telemetry {
     homeLat: live?.home_lat_deg ?? null,
     homeLng: live?.home_lon_deg ?? null,
     homeAltM: live?.home_alt_m ?? null,
+    batteryVoltageV: live?.battery_voltage_v ?? null,
+    batteryCurrentA: live?.battery_current_a ?? null,
+    batteryPowerW: live?.battery_power_w ?? null,
+    batteryRemainingPct: live?.battery_remaining_pct ?? null,
     link: live?.link ?? null,
     hasFix: live?.ok ?? false,
   };

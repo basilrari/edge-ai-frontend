@@ -20,6 +20,10 @@ export interface Telemetry {
   homeLat?: number | null;
   homeLng?: number | null;
   homeAltM?: number | null;
+  batteryVoltageV?: number | null;
+  batteryCurrentA?: number | null;
+  batteryPowerW?: number | null;
+  batteryRemainingPct?: number | null;
   link?: import("../components/types").DroneLinkInfo | null;
   hasFix?: boolean;
 }
