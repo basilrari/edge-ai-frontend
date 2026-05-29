@@ -82,7 +82,7 @@ export function DashboardLayout({
   return (
     <AppShell pageTitle="Mission Control" lockViewport>
       <div className="flex h-full min-h-0 flex-col gap-2">
-        <div className="grid min-h-0 shrink-0 grid-cols-1 gap-2 lg:grid-cols-5 lg:h-[36%] lg:min-h-[220px] lg:max-h-[340px]">
+        <div className="grid min-h-0 flex-1 grid-cols-1 gap-2 lg:grid-cols-5">
           <div className="lg:col-span-2">
             <MissionPromptCard
               onSend={handleSendPrompt}
