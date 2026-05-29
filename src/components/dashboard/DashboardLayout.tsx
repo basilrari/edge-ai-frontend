@@ -6,9 +6,11 @@ import { AppShell } from "./AppShell";
 import { MissionPromptCard } from "./MissionPromptCard";
 import { TelemetryHUDCard } from "./TelemetryHUDCard";
 import { MissionOverviewCard } from "./MissionOverviewCard";
+import { FlightLogsCard } from "./FlightLogsCard";
 import { buildMissionLegs, computeMissionStats } from "../../lib/missionUtils";
 import { useTelemetry } from "../../hooks/useTelemetry";
 import { useMission } from "../../hooks/useMission";
+import { useFlightLogs } from "../../hooks/useFlightLogs";
 import { GATEWAY_URL, sendInferPrompt } from "../../lib/gateway";
 import { MAP_MAX_ZOOM } from "../../lib/mapConstants";
 
@@ -37,6 +39,11 @@ export function DashboardLayout({
     loading: missionLoading,
     error: missionError,
   } = useMission(gatewayUrl);
+  const {
+    entries: flightLogs,
+    loading: logsLoading,
+    error: logsError,
+  } = useFlightLogs(gatewayUrl);
 
   const [promptLoading, setPromptLoading] = useState(false);
   const [promptError, setPromptError] = useState<string | null>(null);
@@ -102,12 +109,19 @@ export function DashboardLayout({
               secondsSinceUpdate={secondsSinceUpdate}
             />
           </div>
-          <div className="xl:col-span-9">
+          <div className="xl:col-span-6">
             <MissionOverviewCard
               legs={missionLegs}
               stats={missionStats}
               loading={missionLoading}
               error={missionError}
+            />
+          </div>
+          <div className="xl:col-span-3">
+            <FlightLogsCard
+              entries={flightLogs}
+              loading={logsLoading}
+              error={logsError}
             />
           </div>
         </div>

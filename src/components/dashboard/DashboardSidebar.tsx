@@ -8,7 +8,9 @@ import {
   LayoutDashboard,
   Plane,
   ScrollText,
+  Settings,
   Target,
+  Video,
 } from "lucide-react";
 import { BRAND_NAME, SIDEBAR_DRONE } from "../../lib/constants";
 
@@ -20,7 +22,9 @@ const NAV: {
 }[] = [
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, href: "/" },
   { id: "mission", label: "Mission", icon: Target, href: "/mission" },
+  { id: "camera", label: "Camera", icon: Video, href: "/camera" },
   { id: "logs", label: "Flight Logs", icon: ScrollText, href: "/logs" },
+  { id: "settings", label: "Settings", icon: Settings, href: "/settings" },
 ];
 
 interface Props {

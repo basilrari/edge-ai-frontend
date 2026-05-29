@@ -50,6 +50,7 @@ export function LiveMapCard({
   const plannerLayerRef = useRef<L.LayerGroup | null>(null);
   const droneRef = useRef<L.CircleMarker | null>(null);
   const operatorRef = useRef<L.CircleMarker | null>(null);
+  const hasInitialCenteredRef = useRef(false);
 
   const showOperator = operator != null;
   const showFollow = followDrone && onFollowChange != null;
@@ -101,8 +102,18 @@ export function LiveMapCard({
       plannerLayerRef.current = null;
       droneRef.current = null;
       operatorRef.current = null;
+      hasInitialCenteredRef.current = false;
     };
   }, [mapMaxZoom, maptilerApiKey, initialZoom]);
+
+  // On refresh, telemetry often arrives after map init — center on drone once.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || telemetry.lat == null || telemetry.lng == null) return;
+    if (hasInitialCenteredRef.current) return;
+    hasInitialCenteredRef.current = true;
+    map.setView([telemetry.lat, telemetry.lng], initialZoom, { animate: false });
+  }, [telemetry.lat, telemetry.lng, initialZoom]);
 
   useEffect(() => {
     const map = mapRef.current;
