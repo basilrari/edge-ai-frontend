@@ -138,6 +138,9 @@ export function buildMissionLegs(mission: DroneMission | null): MissionLeg[] {
       seq: wp.seq,
       label: legLabel(wp, navCount),
       subtitle: legSubtitle(wp),
+      latDeg: hasValidPosition(wp) ? wp.lat_deg : null,
+      lonDeg: hasValidPosition(wp) ? wp.lon_deg : null,
+      altM: Number.isFinite(wp.alt_m) ? wp.alt_m : null,
       status: statusForSeq(wp.seq, mission.current_seq),
     };
   });
@@ -195,4 +198,16 @@ export function formatEstTime(sec: number): string {
   const h = Math.floor(sec / 3600);
   const m = Math.round((sec % 3600) / 60);
   return m > 0 ? `${h}h ${m}m` : `${h}h`;
+}
+
+/** Compact lat/lon/alt for mission leg rows (dashboard + planner). */
+export function formatLegCoords(leg: MissionLeg): string {
+  const parts: string[] = [];
+  if (leg.latDeg != null && leg.lonDeg != null) {
+    parts.push(`${leg.latDeg.toFixed(5)}, ${leg.lonDeg.toFixed(5)}`);
+  }
+  if (leg.altM != null && Number.isFinite(leg.altM)) {
+    parts.push(`${leg.altM.toFixed(0)} m`);
+  }
+  return parts.length > 0 ? parts.join(" · ") : "—";
 }

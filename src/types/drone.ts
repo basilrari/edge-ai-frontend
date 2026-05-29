@@ -33,6 +33,9 @@ export interface MissionLeg {
   seq: number;
   label: string;
   subtitle?: string;
+  latDeg?: number | null;
+  lonDeg?: number | null;
+  altM?: number | null;
   status: MissionLegStatus;
 }
 

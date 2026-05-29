@@ -24,6 +24,8 @@ interface Props {
   mapMaxZoom?: number;
   maptilerApiKey?: string;
   initialZoom?: number;
+  /** Fill parent height instead of fixed pixel height (mission page). */
+  fillHeight?: boolean;
 }
 
 const DEFAULT_CENTER: [number, number] = [23.558, 120.473];
@@ -43,6 +45,7 @@ export function LiveMapCard({
   mapMaxZoom = MAP_MAX_ZOOM,
   maptilerApiKey,
   initialZoom = DEFAULT_INITIAL_ZOOM,
+  fillHeight = false,
 }: Props): JSX.Element {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
@@ -257,7 +260,7 @@ export function LiveMapCard({
   return (
     <DashboardCard
       title="Live Map"
-      className={heightPx > DEFAULT_HEIGHT_PX ? "h-full min-h-0" : undefined}
+      className={fillHeight || heightPx > DEFAULT_HEIGHT_PX ? "h-full min-h-0" : undefined}
       bodyClassName="relative overflow-hidden p-0"
       headerRight={
         plannerMode ? (
@@ -268,8 +271,11 @@ export function LiveMapCard({
       }
     >
       <div
-        className="relative isolate w-full"
-        style={{ height: heightPx }}
+        className={clsx(
+          "relative isolate w-full",
+          fillHeight ? "h-full min-h-0" : undefined
+        )}
+        style={fillHeight ? undefined : { height: heightPx }}
       >
         <div ref={containerRef} className="absolute inset-0 z-0" />
 

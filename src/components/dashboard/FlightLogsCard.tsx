@@ -12,15 +12,28 @@ interface Props {
   error: string | null;
 }
 
-function levelClass(level: string): string {
+function severityDotClass(level: string): string {
   switch (level) {
-    case "warn":
-      return "text-dash-amber";
     case "error":
-      return "text-red-400";
+      return "bg-red-500 ring-red-500/30";
+    case "warn":
+      return "bg-yellow-400 ring-yellow-400/30";
     default:
-      return "text-dash-accent";
+      return "bg-emerald-500 ring-emerald-500/30";
   }
+}
+
+function SeverityDot({ level }: { level: string }): JSX.Element {
+  return (
+    <span
+      className={clsx(
+        "mt-1.5 h-2 w-2 shrink-0 rounded-full ring-2",
+        severityDotClass(level)
+      )}
+      aria-label={level}
+      title={level}
+    />
+  );
 }
 
 export function FlightLogsCard({ entries, loading, error }: Props): JSX.Element {
@@ -59,15 +72,10 @@ export function FlightLogsCard({ entries, loading, error }: Props): JSX.Element 
           {rows.map((e, i) => (
             <li
               key={`${e.ts_ms}-${i}`}
-              className="flex gap-2 px-3 py-2 hover:bg-dash-bg/40"
+              className="flex items-start gap-2 px-3 py-2 hover:bg-dash-bg/40"
             >
-              <span className="shrink-0 text-dash-muted">
-                {new Date(e.ts_ms).toLocaleTimeString()}
-              </span>
-              <span className={clsx("shrink-0 uppercase", levelClass(e.level))}>
-                [{e.level}]
-              </span>
-              <span className="min-w-0 shrink text-dash-text">{e.message}</span>
+              <SeverityDot level={e.level} />
+              <span className="min-w-0 flex-1 text-dash-text">{e.message}</span>
             </li>
           ))}
         </ul>

@@ -11,6 +11,7 @@ import {
   buildMissionLegs,
   computeMissionStats,
   formatEstTime,
+  formatLegCoords,
 } from "../../lib/missionUtils";
 import {
   DEFAULT_PLANNER_DRAFT,
@@ -30,6 +31,7 @@ interface Props {
   droneMissionLoading: boolean;
   droneMissionError: string | null;
   groundspeedMps: number | null;
+  fillHeight?: boolean;
 }
 
 function StatBlock({ label, value }: { label: string; value: string }) {
@@ -54,6 +56,7 @@ export function MissionPlannerCard({
   droneMissionLoading,
   droneMissionError,
   groundspeedMps,
+  fillHeight = false,
 }: Props): JSX.Element {
   const [uploading, setUploading] = useState(false);
   const [clearingDrone, setClearingDrone] = useState(false);
@@ -160,7 +163,11 @@ export function MissionPlannerCard({
   return (
     <DashboardCard
       title="Mission Planner"
-      bodyClassName="flex flex-col gap-3 p-3"
+      className={fillHeight ? "h-full min-h-0" : undefined}
+      bodyClassName={clsx(
+        "flex flex-col gap-3 p-3",
+        fillHeight && "min-h-0 overflow-y-auto"
+      )}
     >
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
         <StatBlock label="Plan WPs" value={String(draft.waypoints.length)} />
@@ -414,11 +421,16 @@ export function MissionPlannerCard({
         </p>
       ) : null}
 
-      <div className="border-t border-dash-border pt-3">
+      <div className={clsx("border-t border-dash-border pt-3", fillHeight && "min-h-0 flex-1")}>
         <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-dash-muted">
           On drone now
         </p>
-        <div className="max-h-[120px] overflow-y-auto rounded-md border border-dash-border bg-dash-bg/30">
+        <div
+          className={clsx(
+            "overflow-y-auto rounded-md border border-dash-border bg-dash-bg/30",
+            fillHeight ? "max-h-none min-h-[120px] flex-1" : "max-h-[120px]"
+          )}
+        >
           {droneMissionLoading && droneLegs.length === 0 && (
             <p className="p-3 text-center text-xs text-dash-muted">
               Loading mission from FC…
@@ -440,19 +452,24 @@ export function MissionPlannerCard({
                 <li
                   key={leg.id}
                   className={clsx(
-                    "px-3 py-1.5 text-xs",
+                    "flex items-center justify-between gap-3 px-3 py-1.5 text-xs",
                     leg.status === "in_progress" && "bg-dash-blue/5"
                   )}
                 >
-                  <span className="font-mono text-dash-muted">{idx + 1}.</span>{" "}
-                  <span
-                    className={
-                      leg.status === "in_progress"
-                        ? "text-dash-blue"
-                        : "text-dash-text"
-                    }
-                  >
-                    {leg.label}
+                  <span className="min-w-0 truncate">
+                    <span className="font-mono text-dash-muted">{idx + 1}.</span>{" "}
+                    <span
+                      className={
+                        leg.status === "in_progress"
+                          ? "text-dash-blue"
+                          : "text-dash-text"
+                      }
+                    >
+                      {leg.label}
+                    </span>
+                  </span>
+                  <span className="shrink-0 font-mono text-[10px] text-dash-muted">
+                    {formatLegCoords(leg)}
                   </span>
                 </li>
               ))}

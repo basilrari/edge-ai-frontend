@@ -4,7 +4,7 @@ import React from "react";
 import clsx from "clsx";
 import { DashboardCard } from "./DashboardCard";
 import type { MissionLeg, MissionOverviewStats } from "../../types/drone";
-import { formatEstTime } from "../../lib/missionUtils";
+import { formatEstTime, formatLegCoords } from "../../lib/missionUtils";
 
 interface Props {
   legs: MissionLeg[];
@@ -38,11 +38,11 @@ function StatBlock({
   value: string;
 }): JSX.Element {
   return (
-    <div className="rounded-md border border-dash-border bg-dash-bg/60 px-3 py-2">
+    <div className="flex items-center justify-between gap-3 rounded-md border border-dash-border bg-dash-bg/60 px-3 py-2">
       <p className="text-[9px] font-semibold uppercase tracking-wider text-dash-muted">
         {label}
       </p>
-      <p className="mt-0.5 text-lg font-semibold tabular-nums text-dash-text">
+      <p className="text-lg font-semibold tabular-nums text-dash-text">
         {value}
       </p>
     </div>
@@ -116,19 +116,19 @@ export function MissionOverviewCard({
               <li
                 key={leg.id}
                 className={clsx(
-                  "flex gap-3 px-3 py-2.5",
+                  "flex items-center gap-3 px-3 py-2.5",
                   leg.status === "in_progress" && "bg-dash-blue/5"
                 )}
               >
                 <LegDot status={leg.status} />
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
+                <div className="flex min-w-0 flex-1 items-center justify-between gap-3">
+                  <div className="flex min-w-0 items-center gap-2">
                     <span className="text-[10px] font-mono text-dash-muted">
                       {idx + 1}.
                     </span>
                     <span
                       className={clsx(
-                        "text-sm font-medium",
+                        "truncate text-sm font-medium",
                         leg.status === "completed"
                           ? "text-dash-text"
                           : leg.status === "in_progress"
@@ -139,16 +139,14 @@ export function MissionOverviewCard({
                       {leg.label}
                     </span>
                     {leg.status === "in_progress" && (
-                      <span className="rounded bg-dash-blue/15 px-1.5 py-0.5 text-[9px] font-semibold uppercase text-dash-blue">
+                      <span className="shrink-0 rounded bg-dash-blue/15 px-1.5 py-0.5 text-[9px] font-semibold uppercase text-dash-blue">
                         Active
                       </span>
                     )}
                   </div>
-                  {leg.subtitle ? (
-                    <p className="mt-0.5 truncate font-mono text-[10px] text-dash-muted">
-                      {leg.subtitle}
-                    </p>
-                  ) : null}
+                  <span className="shrink-0 font-mono text-[10px] text-dash-muted">
+                    {formatLegCoords(leg)}
+                  </span>
                 </div>
               </li>
             ))}
