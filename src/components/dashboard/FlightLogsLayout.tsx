@@ -287,7 +287,7 @@ function FlightEventsPanel({
         </button>
       }
     >
-      <div className="dash-scroll h-full min-h-0 overflow-auto">
+      <div className="dash-scroll h-full min-h-0 overflow-x-hidden overflow-y-auto">
         {error && (
           <p className="border-b border-dash-border px-3 py-2 text-xs text-dash-amber">
             {error}
@@ -299,27 +299,29 @@ function FlightEventsPanel({
           </p>
         )}
         {rows.length > 0 && (
-          <table className="w-full border-collapse font-mono text-[11px]">
+          <table className="allow-wrap w-full table-fixed border-collapse font-mono text-[11px]">
             <thead className="sticky top-0 bg-dash-panel text-left text-[10px] uppercase tracking-wide text-dash-muted">
               <tr>
-                <th className="px-3 py-2 font-medium">Time (UTC)</th>
-                <th className="px-3 py-2 font-medium">Event</th>
+                <th className="w-[7.5rem] px-3 py-2 font-medium">Time (UTC)</th>
+                <th className="w-[5.5rem] px-3 py-2 font-medium">Event</th>
                 <th className="px-3 py-2 font-medium">Data</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="allow-wrap">
               {rows.map((e, i) => {
                 const { event, data } = parseFlightRow(e);
                 return (
                   <tr
                     key={`${e.ts_ms}-${i}`}
-                    className="border-t border-dash-border/50 hover:bg-dash-bg/40"
+                    className="allow-wrap border-t border-dash-border/50 hover:bg-dash-bg/40"
                   >
-                    <td className="whitespace-nowrap px-3 py-1.5 text-dash-muted">
+                    <td className="whitespace-nowrap px-3 py-1.5 align-top text-dash-muted">
                       {fmtUtc(e.ts_ms)}
                     </td>
-                    <td className="px-3 py-1.5 text-dash-blue">{event}</td>
-                    <td className="whitespace-nowrap px-3 py-1.5 text-dash-text">
+                    <td className="allow-wrap px-3 py-1.5 align-top text-dash-blue">
+                      {event}
+                    </td>
+                    <td className="allow-wrap break-words px-3 py-1.5 align-top text-dash-text">
                       {data}
                     </td>
                   </tr>
@@ -473,7 +475,7 @@ function PixhawkLogsPanel({
         </div>
       }
     >
-      <div className="dash-scroll h-full min-h-0 overflow-auto">
+      <div className="dash-scroll h-full min-h-0 overflow-x-hidden overflow-y-auto">
         {rows.length === 0 && (
           <p className="px-4 py-6 text-center text-xs text-dash-muted">
             Waiting for MAVLink telemetry from the flight controller…

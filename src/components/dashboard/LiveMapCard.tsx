@@ -363,40 +363,7 @@ export function LiveMapCard({
           </div>
         )}
 
-        {showLayerToggles ? (
-          <div className="absolute bottom-3 left-3 z-[400] flex flex-wrap gap-1.5">
-            <button
-              type="button"
-              className={clsx(
-                "flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-[10px] font-medium backdrop-blur-sm transition",
-                showPlannerPlan
-                  ? "border-dash-amber/50 bg-dash-amber/15 text-dash-amber"
-                  : "border-dash-border bg-dash-panel/95 text-dash-muted hover:text-dash-text"
-              )}
-              onClick={() => onShowPlannerPlanChange?.(!showPlannerPlan)}
-              aria-pressed={showPlannerPlan}
-            >
-              <span className="inline-block h-2 w-2 rounded-full bg-dash-amber" />
-              New plan
-            </button>
-            <button
-              type="button"
-              className={clsx(
-                "flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-[10px] font-medium backdrop-blur-sm transition",
-                showDronePlan
-                  ? "border-blue-500/50 bg-blue-500/15 text-blue-300"
-                  : "border-dash-border bg-dash-panel/95 text-dash-muted hover:text-dash-text"
-              )}
-              onClick={() => onShowDronePlanChange?.(!showDronePlan)}
-              aria-pressed={showDronePlan}
-            >
-              <span className="inline-block h-2 w-2 rounded-full bg-blue-500" />
-              On drone
-            </button>
-          </div>
-        ) : null}
-
-        <div className="absolute right-3 top-3 z-[400] flex flex-col gap-1">
+        <div className="absolute right-3 top-3 z-[400] flex flex-col items-end gap-1">
           {showFollow ? (
             <button
               type="button"
@@ -439,6 +406,38 @@ export function LiveMapCard({
           >
             <Minus className="h-4 w-4" />
           </button>
+          {showLayerToggles ? (
+            <div className="mt-1 flex flex-col items-stretch gap-1.5">
+              <button
+                type="button"
+                className={clsx(
+                  "flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-[10px] font-medium backdrop-blur-sm transition",
+                  showPlannerPlan
+                    ? "border-dash-amber/50 bg-dash-amber/15 text-dash-amber"
+                    : "border-dash-border bg-dash-panel/95 text-dash-muted hover:text-dash-text"
+                )}
+                onClick={() => onShowPlannerPlanChange?.(!showPlannerPlan)}
+                aria-pressed={showPlannerPlan}
+              >
+                <span className="inline-block h-2 w-2 rounded-full bg-dash-amber" />
+                New plan
+              </button>
+              <button
+                type="button"
+                className={clsx(
+                  "flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-[10px] font-medium backdrop-blur-sm transition",
+                  showDronePlan
+                    ? "border-blue-500/50 bg-blue-500/15 text-blue-300"
+                    : "border-dash-border bg-dash-panel/95 text-dash-muted hover:text-dash-text"
+                )}
+                onClick={() => onShowDronePlanChange?.(!showDronePlan)}
+                aria-pressed={showDronePlan}
+              >
+                <span className="inline-block h-2 w-2 rounded-full bg-blue-500" />
+                On drone
+              </button>
+            </div>
+          ) : null}
         </div>
       </div>
     </DashboardCard>

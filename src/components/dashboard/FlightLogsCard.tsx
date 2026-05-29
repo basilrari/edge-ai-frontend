@@ -52,7 +52,7 @@ export function FlightLogsCard({ entries, loading, error }: Props): JSX.Element 
         </Link>
       }
     >
-      <div className="max-h-[280px] overflow-y-auto dash-scroll">
+      <div className="max-h-[280px] overflow-x-hidden overflow-y-auto dash-scroll">
         {error && (
           <p className="border-b border-dash-border px-3 py-2 text-xs text-dash-amber">
             {error}
@@ -68,14 +68,16 @@ export function FlightLogsCard({ entries, loading, error }: Props): JSX.Element 
             No events yet. Logs appear when drone-http connects and runs commands.
           </p>
         )}
-        <ul className="divide-y divide-dash-border/60 font-mono text-[11px]">
+        <ul className="allow-wrap divide-y divide-dash-border/60 font-mono text-[11px]">
           {rows.map((e, i) => (
             <li
               key={`${e.ts_ms}-${i}`}
-              className="flex items-start gap-2 px-3 py-2 hover:bg-dash-bg/40"
+              className="allow-wrap flex items-start gap-2 px-3 py-2 hover:bg-dash-bg/40"
             >
               <SeverityDot level={e.level} />
-              <span className="min-w-0 flex-1 text-dash-text">{e.message}</span>
+              <span className="allow-wrap min-w-0 flex-1 break-words text-dash-text">
+                {e.message}
+              </span>
             </li>
           ))}
         </ul>
