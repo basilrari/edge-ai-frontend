@@ -132,11 +132,13 @@ function PanelShell({
         accentBorder
       )}
     >
-      <header className="flex shrink-0 items-center justify-between gap-2 border-b border-dash-border px-4 py-2.5 min-w-0">
-        <h2 className={clsx("min-w-0 shrink text-[11px] font-semibold uppercase tracking-[0.14em]", accentText)}>
+      <header className="flex shrink-0 items-center justify-between gap-2 border-b border-dash-border px-4 py-2.5 min-w-0 overflow-hidden">
+        <h2 className={clsx("min-w-0 truncate text-[11px] font-semibold uppercase tracking-[0.14em]", accentText)}>
           {title}
         </h2>
-        {headerRight}
+        {headerRight ? (
+          <div className="min-w-0 shrink overflow-hidden">{headerRight}</div>
+        ) : null}
       </header>
       <div className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-hidden">{children}</div>
       {footer ? (
@@ -222,12 +224,12 @@ function LlmOutputPanel({
           </p>
         )}
         {loading && history.length === 0 && (
-          <p className="px-4 py-6 text-center text-xs text-dash-muted">
+          <p className="dash-empty-msg px-4 py-6 text-center text-xs text-dash-muted">
             Waiting for LLM infer requests…
           </p>
         )}
         {!loading && history.length === 0 && !error && (
-          <p className="px-4 py-6 text-center text-xs text-dash-muted">
+          <p className="dash-empty-msg px-4 py-6 text-center text-xs text-dash-muted">
             No LLM outputs yet. Send a mission prompt from the dashboard.
           </p>
         )}
@@ -237,7 +239,7 @@ function LlmOutputPanel({
               <p className="shrink-0 px-3 py-1.5 text-[10px] font-medium uppercase tracking-wide text-dash-muted">
                 History
               </p>
-              <ul className="dash-scroll min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto">
+              <ul className="dash-scroll-y min-h-0 min-w-0 flex-1">
                 {history.map((entry) => {
                   const active = entry.request_id === selected?.request_id;
                   return (
@@ -343,24 +345,24 @@ function FlightEventsPanel({
         </div>
       }
     >
-      <div className="dash-scroll h-full min-h-0 min-w-0 overflow-x-hidden overflow-y-auto">
+      <div className="dash-scroll-y h-full min-h-0 min-w-0">
         {error && (
-          <p className="border-b border-dash-border px-3 py-2 text-xs text-dash-amber">
+          <p className="allow-wrap border-b border-dash-border px-3 py-2 text-xs text-dash-amber">
             {error}
           </p>
         )}
         {rows.length === 0 && (
-          <p className="px-4 py-6 text-center text-xs text-dash-muted">
+          <p className="dash-empty-msg px-4 py-6 text-center text-xs text-dash-muted">
             No flight events yet. Logs appear when drone-http connects and runs commands.
           </p>
         )}
         {rows.length > 0 && (
           <table className="allow-wrap w-full table-fixed border-collapse font-mono text-[11px]">
-            <thead className="sticky top-0 bg-dash-panel text-left text-[10px] uppercase tracking-wide text-dash-muted">
+            <thead className="sticky top-0 z-[1] bg-dash-panel text-left text-[10px] uppercase tracking-wide text-dash-muted">
               <tr>
-                <th className="w-[7.5rem] px-3 py-2 font-medium">Time ({label})</th>
-                <th className="w-[5.5rem] px-3 py-2 font-medium">Event</th>
-                <th className="px-3 py-2 font-medium">Data</th>
+                <th className="w-[26%] px-3 py-2 font-medium">Time ({label})</th>
+                <th className="w-[20%] px-3 py-2 font-medium">Event</th>
+                <th className="w-[54%] px-3 py-2 font-medium">Data</th>
               </tr>
             </thead>
             <tbody className="allow-wrap">
@@ -371,13 +373,13 @@ function FlightEventsPanel({
                     key={`${e.ts_ms}-${i}`}
                     className="allow-wrap border-t border-dash-border/50 hover:bg-dash-bg/40"
                   >
-                    <td className="whitespace-nowrap px-3 py-1.5 align-top text-dash-muted">
+                    <td className="max-w-0 whitespace-nowrap px-3 py-1.5 align-top text-dash-muted">
                       {formatLogTime(e.ts_ms)}
                     </td>
-                    <td className="allow-wrap break-words px-3 py-1.5 align-top text-dash-blue">
+                    <td className="allow-wrap max-w-0 break-words px-3 py-1.5 align-top text-dash-blue">
                       {event}
                     </td>
-                    <td className="allow-wrap break-words px-3 py-1.5 align-top text-dash-text">
+                    <td className="allow-wrap max-w-0 break-words px-3 py-1.5 align-top text-dash-text">
                       {data}
                     </td>
                   </tr>
@@ -407,6 +409,20 @@ function PixhawkLogsPanel({
   const [search, setSearch] = useState("");
 
   const sourceEntries = paused ? frozenEntries : entries;
+  const visibleCount = sourceEntries.length;
+
+  React.useEffect(() => {
+    if (entries.length === 0) {
+      setFrozenEntries([]);
+      setPaused(false);
+    }
+  }, [entries.length]);
+
+  const handleClear = async (): Promise<void> => {
+    await onClear();
+    setFrozenEntries([]);
+    setPaused(false);
+  };
 
   const togglePause = (): void => {
     if (paused) {
@@ -453,7 +469,7 @@ function PixhawkLogsPanel({
       title="Pixhawk Logs"
       accent="green"
       headerRight={
-        <div className="flex items-center gap-2">
+        <div className="flex min-w-0 shrink items-center gap-2 overflow-hidden">
           <div className="relative hidden sm:block">
             <Search className="pointer-events-none absolute left-2 top-1/2 h-3 w-3 -translate-y-1/2 text-dash-muted" />
             <input
@@ -510,7 +526,11 @@ function PixhawkLogsPanel({
               <Download className="h-3.5 w-3.5" />
               Download Log
             </button>
-            <ClearLogsButton label="Clear Pixhawk logs" onClear={onClear} disabled={entries.length === 0} />
+            <ClearLogsButton
+              label="Clear Pixhawk logs"
+              onClear={handleClear}
+              disabled={visibleCount === 0}
+            />
           </div>
           <span
             className={clsx(
@@ -537,20 +557,22 @@ function PixhawkLogsPanel({
         </div>
       }
     >
-      <div className="dash-scroll h-full min-h-0 min-w-0 overflow-x-hidden overflow-y-auto">
+      <div className="dash-scroll-y h-full min-h-0 min-w-0">
         {rows.length === 0 && (
-          <p className="px-4 py-6 text-center text-xs text-dash-muted">
-            Waiting for MAVLink telemetry from the flight controller…
+          <p className="dash-empty-msg px-4 py-6 text-center text-xs text-dash-muted">
+            {paused
+              ? "No messages match the current filter."
+              : "Waiting for MAVLink telemetry from the flight controller…"}
           </p>
         )}
         {rows.length > 0 && (
           <table className="allow-wrap w-full table-fixed border-collapse font-mono text-[11px]">
-            <thead className="sticky top-0 bg-dash-panel text-left text-[10px] uppercase tracking-wide text-dash-muted">
+            <thead className="sticky top-0 z-[1] bg-dash-panel text-left text-[10px] uppercase tracking-wide text-dash-muted">
               <tr>
-                <th className="w-[7.5rem] px-3 py-2 font-medium">Time ({label})</th>
-                <th className="w-[4.5rem] px-3 py-2 font-medium">Message ID</th>
-                <th className="w-[8.5rem] px-3 py-2 font-medium">Message</th>
-                <th className="px-3 py-2 font-medium">Value</th>
+                <th className="w-[22%] px-3 py-2 font-medium">Time ({label})</th>
+                <th className="w-[12%] px-3 py-2 font-medium">Msg ID</th>
+                <th className="w-[22%] px-3 py-2 font-medium">Message</th>
+                <th className="w-[44%] px-3 py-2 font-medium">Value</th>
               </tr>
             </thead>
             <tbody className="allow-wrap">
@@ -559,14 +581,16 @@ function PixhawkLogsPanel({
                   key={`${e.ts_ms}-${e.msg_id}-${i}`}
                   className="allow-wrap border-t border-dash-border/50 hover:bg-dash-bg/40"
                 >
-                  <td className="whitespace-nowrap px-3 py-1.5 align-top text-dash-muted">
+                  <td className="max-w-0 whitespace-nowrap px-3 py-1.5 align-top text-dash-muted">
                     {formatLogTime(e.ts_ms)}
                   </td>
-                  <td className="allow-wrap px-3 py-1.5 align-top text-dash-muted">{e.msg_id}</td>
-                  <td className="allow-wrap break-words px-3 py-1.5 align-top text-dash-accent">
+                  <td className="allow-wrap max-w-0 break-words px-3 py-1.5 align-top text-dash-muted">
+                    {e.msg_id}
+                  </td>
+                  <td className="allow-wrap max-w-0 break-words px-3 py-1.5 align-top text-dash-accent">
                     {e.msg_name}
                   </td>
-                  <td className="allow-wrap break-words px-3 py-1.5 align-top text-dash-text">
+                  <td className="allow-wrap max-w-0 break-words px-3 py-1.5 align-top text-dash-text">
                     {e.value}
                   </td>
                 </tr>
@@ -594,7 +618,7 @@ export function FlightLogsLayout(): JSX.Element {
   const handleClearAll = async () => {
     await clearAllLogs();
     resetLlmLogs();
-    resetDroneLogs();
+    resetDroneLogs("all");
     reloadLlmLogs();
     reloadDroneLogs();
   };
@@ -605,7 +629,7 @@ export function FlightLogsLayout(): JSX.Element {
         <div className="flex shrink-0 flex-wrap items-center justify-between gap-3">
           <div className="flex min-w-0 flex-wrap items-baseline gap-3">
             <h1 className="text-base font-semibold text-dash-text">Flight Logs</h1>
-            <p className="text-[11px] text-dash-muted">
+            <p className="dash-empty-msg min-w-0 text-[11px] text-dash-muted">
               LLM outputs, flight events, and live Pixhawk MAVLink messages.
             </p>
           </div>
@@ -629,7 +653,7 @@ export function FlightLogsLayout(): JSX.Element {
             error={error}
             onClear={async () => {
               await clearDroneLogs("flight");
-              resetDroneLogs();
+              resetDroneLogs("flight");
               reloadDroneLogs();
             }}
           />
@@ -638,7 +662,7 @@ export function FlightLogsLayout(): JSX.Element {
             connected={connected}
             onClear={async () => {
               await clearDroneLogs("mavlink");
-              resetDroneLogs();
+              resetDroneLogs("mavlink");
               reloadDroneLogs();
             }}
           />

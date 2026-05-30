@@ -50,8 +50,22 @@ body {
   word-break: break-word;
 }
 
+.dashboard-app .dash-empty-msg {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  max-width: 100%;
+}
+
 .dash-scroll {
   overflow: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #374151 #0b0e14;
+}
+
+.dash-scroll-y {
+  overflow-x: hidden;
+  overflow-y: auto;
   scrollbar-width: thin;
   scrollbar-color: #374151 #0b0e14;
 }
@@ -72,6 +86,24 @@ body {
 }
 
 .dash-scroll::-webkit-scrollbar-thumb:hover {
+  background: #4ade80;
+}
+
+.dash-scroll-y::-webkit-scrollbar {
+  width: 6px;
+}
+
+.dash-scroll-y::-webkit-scrollbar-track {
+  background: #0b0e14;
+  border-radius: 3px;
+}
+
+.dash-scroll-y::-webkit-scrollbar-thumb {
+  background: #374151;
+  border-radius: 3px;
+}
+
+.dash-scroll-y::-webkit-scrollbar-thumb:hover {
   background: #4ade80;
 }
 

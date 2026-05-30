@@ -60,7 +60,7 @@ export function useLogsStream(gatewayUrl: string): {
   connected: boolean;
   error: string | null;
   reload: () => void;
-  resetEntries: () => void;
+  resetEntries: (target?: "flight" | "mavlink" | "all") => void;
 } {
   const [flightEntries, setFlightEntries] = useState<FlightLogEntry[]>([]);
   const [mavlinkEntries, setMavlinkEntries] = useState<MavlinkLogEntry[]>([]);
@@ -71,9 +71,13 @@ export function useLogsStream(gatewayUrl: string): {
 
   const reload = useCallback(() => setRefreshNonce((n) => n + 1), []);
 
-  const resetEntries = useCallback(() => {
-    setFlightEntries([]);
-    setMavlinkEntries([]);
+  const resetEntries = useCallback((target: "flight" | "mavlink" | "all" = "all") => {
+    if (target === "flight" || target === "all") {
+      setFlightEntries([]);
+    }
+    if (target === "mavlink" || target === "all") {
+      setMavlinkEntries([]);
+    }
     setError(null);
   }, []);
 
