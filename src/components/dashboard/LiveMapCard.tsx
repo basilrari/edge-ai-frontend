@@ -11,6 +11,7 @@ import type { PlannerWaypoint } from "../../lib/missionPlanner";
 import type { DroneMapMarker } from "../../lib/missionUtils";
 import { addSatelliteBasemap } from "../../lib/mapBasemap";
 import { MAP_MAX_ZOOM } from "../../lib/mapConstants";
+import { droneMapIcon, numberedMapIcon } from "../../lib/mapMarkers";
 
 interface Props {
   activeWaypoints: Waypoint[];
@@ -65,7 +66,8 @@ export function LiveMapCard({
   const mapRef = useRef<L.Map | null>(null);
   const activeLayerRef = useRef<L.LayerGroup | null>(null);
   const plannerLayerRef = useRef<L.LayerGroup | null>(null);
-  const droneRef = useRef<L.CircleMarker | null>(null);
+  const homeLayerRef = useRef<L.LayerGroup | null>(null);
+  const droneRef = useRef<L.Marker | null>(null);
   const operatorRef = useRef<L.CircleMarker | null>(null);
   const hasInitialCenteredRef = useRef(false);
 
@@ -113,6 +115,7 @@ export function LiveMapCard({
 
     activeLayerRef.current = L.layerGroup().addTo(map);
     plannerLayerRef.current = L.layerGroup().addTo(map);
+    homeLayerRef.current = L.layerGroup().addTo(map);
     mapRef.current = map;
 
     const ro = new ResizeObserver(() => {
@@ -126,6 +129,7 @@ export function LiveMapCard({
       mapRef.current = null;
       activeLayerRef.current = null;
       plannerLayerRef.current = null;
+      homeLayerRef.current = null;
       droneRef.current = null;
       operatorRef.current = null;
       hasInitialCenteredRef.current = false;
@@ -176,12 +180,20 @@ export function LiveMapCard({
       lng: number;
       label?: string;
       altM?: number | null;
+      mapLabel?: string;
     }> =
       dronePlanMarkers != null
-        ? dronePlanMarkers
-        : activeWaypoints.map((w) => ({
+        ? dronePlanMarkers.map((m) => ({
+            lat: m.lat,
+            lng: m.lng,
+            label: m.label,
+            altM: m.altM,
+            mapLabel: m.mapLabel,
+          }))
+        : activeWaypoints.map((w, i) => ({
             lat: w.lat,
             lng: w.lng,
+            mapLabel: String(i + 1),
           }));
 
     const pathLatLngs: Array<[number, number]> =
@@ -198,21 +210,19 @@ export function LiveMapCard({
       }).addTo(layer);
     }
 
-    markers.forEach((w) => {
+    markers.forEach((w, i) => {
+      const pin = w.mapLabel ?? String(i + 1);
       const tooltip =
         w.label != null
           ? w.altM != null
             ? `${w.label} · ${w.altM.toFixed(0)} m`
             : w.label
-          : undefined;
-      const marker = L.circleMarker([w.lat, w.lng], {
-        radius: 7,
-        color: "#93C5FD",
-        fillColor: "#3B82F6",
-        fillOpacity: 0.85,
-        weight: 2,
-      }).addTo(layer);
-      if (tooltip) marker.bindTooltip(tooltip);
+          : `Waypoint ${pin}`;
+      L.marker([w.lat, w.lng], {
+        icon: numberedMapIcon(pin, "drone-plan"),
+      })
+        .bindTooltip(tooltip)
+        .addTo(layer);
     });
   }, [
     activeWaypoints,
@@ -238,17 +248,32 @@ export function LiveMapCard({
       }).addTo(layer);
     }
     plannerWaypoints.forEach((w, i) => {
-      L.circleMarker([w.lat, w.lng], {
-        radius: 8,
-        color: "#FDE68A",
-        fillColor: "#FBBF24",
-        fillOpacity: 0.95,
-        weight: 2,
+      const pin = String(i + 1);
+      L.marker([w.lat, w.lng], {
+        icon: numberedMapIcon(pin, "planner"),
       })
-        .bindTooltip(`Plan ${i + 1} · ${w.altM.toFixed(0)} m`)
+        .bindTooltip(`Plan ${pin} · ${w.altM.toFixed(0)} m`)
         .addTo(layer);
     });
   }, [plannerWaypoints, showPlannerPlan]);
+
+  useEffect(() => {
+    const layer = homeLayerRef.current;
+    if (!layer) return;
+    layer.clearLayers();
+
+    if (telemetry.homeLat != null && telemetry.homeLng != null) {
+      const alt =
+        telemetry.homeAltM != null && Number.isFinite(telemetry.homeAltM)
+          ? ` · ${telemetry.homeAltM.toFixed(0)} m`
+          : "";
+      L.marker([telemetry.homeLat, telemetry.homeLng], {
+        icon: numberedMapIcon("H", "home"),
+      })
+        .bindTooltip(`Home${alt}`)
+        .addTo(layer);
+    }
+  }, [telemetry.homeLat, telemetry.homeLng, telemetry.homeAltM]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -256,17 +281,22 @@ export function LiveMapCard({
 
     if (telemetry.lat != null && telemetry.lng != null) {
       const pos: [number, number] = [telemetry.lat, telemetry.lng];
+      const headingLabel =
+        telemetry.heading != null && Number.isFinite(telemetry.heading)
+          ? ` · ${Math.round(telemetry.heading)}°`
+          : "";
+      const icon = droneMapIcon(
+        telemetry.heading != null && Number.isFinite(telemetry.heading)
+          ? telemetry.heading
+          : null
+      );
       if (droneRef.current) {
         droneRef.current.setLatLng(pos);
+        droneRef.current.setIcon(icon);
+        droneRef.current.getTooltip()?.setContent(`Drone${headingLabel}`);
       } else {
-        droneRef.current = L.circleMarker(pos, {
-          radius: 11,
-          color: "#052e16",
-          fillColor: "#4ADE80",
-          fillOpacity: 1,
-          weight: 3,
-        })
-          .bindTooltip("Drone")
+        droneRef.current = L.marker(pos, { icon, zIndexOffset: 1000 })
+          .bindTooltip(`Drone${headingLabel}`)
           .addTo(map);
       }
     }
@@ -287,7 +317,13 @@ export function LiveMapCard({
           .addTo(map);
       }
     }
-  }, [telemetry.lat, telemetry.lng, operator, showOperator]);
+  }, [
+    telemetry.lat,
+    telemetry.lng,
+    telemetry.heading,
+    operator,
+    showOperator,
+  ]);
 
   const smoothZoom = useCallback(
     (delta: number) => {
@@ -334,13 +370,26 @@ export function LiveMapCard({
       >
         <div ref={containerRef} className="absolute inset-0 z-0" />
 
-        {(showOperator || hasDroneLayer || hasPlannerLayer) && (
+        {(showOperator ||
+          hasDroneLayer ||
+          hasPlannerLayer ||
+          telemetry.homeLat != null) && (
           <div className="pointer-events-none absolute left-3 top-3 z-[400]">
             <div className="rounded-md border border-dash-border bg-dash-panel/95 px-2.5 py-1.5 text-[10px] text-dash-muted backdrop-blur-sm">
               <span className="mr-2 inline-flex items-center gap-1">
-                <span className="inline-block h-2 w-2 rounded-full bg-dash-accent" />
+                <span className="inline-flex h-4 w-4 items-center justify-center text-[9px] font-bold text-dash-accent">
+                  ✈
+                </span>
                 Drone
               </span>
+              {telemetry.homeLat != null ? (
+                <span className="mr-2 inline-flex items-center gap-1">
+                  <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-orange-500 text-[9px] font-bold text-white">
+                    H
+                  </span>
+                  Home
+                </span>
+              ) : null}
               {showOperator ? (
                 <span className="mr-2 inline-flex items-center gap-1">
                   <span className="inline-block h-2 w-2 rounded-full bg-dash-blue" />
@@ -349,13 +398,17 @@ export function LiveMapCard({
               ) : null}
               {hasDroneLayer && showDronePlan ? (
                 <span className="mr-2 inline-flex items-center gap-1">
-                  <span className="inline-block h-2 w-2 rounded-full bg-blue-500" />
+                  <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-blue-500 text-[9px] font-bold text-white">
+                    1
+                  </span>
                   On drone
                 </span>
               ) : null}
               {hasPlannerLayer && showPlannerPlan ? (
                 <span className="inline-flex items-center gap-1">
-                  <span className="inline-block h-2 w-2 rounded-full bg-dash-amber" />
+                  <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-dash-amber text-[9px] font-bold text-[#422006]">
+                    1
+                  </span>
                   New plan
                 </span>
               ) : null}

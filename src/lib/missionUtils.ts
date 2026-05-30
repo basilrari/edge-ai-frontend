@@ -243,21 +243,46 @@ export interface DroneMapMarker {
   lng: number;
   altM: number | null;
   label: string;
+  /** Short text on the map pin (e.g. "1", "2", "H"). */
+  mapLabel: string;
 }
 
 /** Geographic markers for each on-drone mission leg with valid coordinates. */
 export function missionToDroneMapMarkers(
   mission: DroneMission | null
 ): DroneMapMarker[] {
-  return buildMissionLegs(mission)
-    .filter((leg) => leg.latDeg != null && leg.lonDeg != null)
-    .map((leg) => ({
-      id: leg.id,
-      lat: leg.latDeg!,
-      lng: leg.lonDeg!,
-      altM: leg.altM ?? null,
-      label: leg.label,
-    }));
+  let navIndex = 0;
+  const markers: DroneMapMarker[] = [];
+
+  for (const leg of buildMissionLegs(mission)) {
+    if (leg.latDeg == null || leg.lonDeg == null) continue;
+
+    if (leg.label.startsWith("Waypoint ")) {
+      navIndex += 1;
+      markers.push({
+        id: leg.id,
+        lat: leg.latDeg,
+        lng: leg.lonDeg,
+        altM: leg.altM ?? null,
+        label: leg.label,
+        mapLabel: String(navIndex),
+      });
+      continue;
+    }
+
+    if (leg.label === "Land") {
+      markers.push({
+        id: leg.id,
+        lat: leg.latDeg,
+        lng: leg.lonDeg,
+        altM: leg.altM ?? null,
+        label: leg.label,
+        mapLabel: "L",
+      });
+    }
+  }
+
+  return markers;
 }
 
 /** Path polyline for the on-drone mission (nav + land waypoints in order). */

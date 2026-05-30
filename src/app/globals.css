@@ -121,6 +121,80 @@ body {
   @apply min-h-[72px] rounded-md border border-dash-border bg-[#0b0e14]/80 px-2.5 py-2;
 }
 
+.map-pin-host,
+.map-drone-host {
+  background: transparent !important;
+  border: none !important;
+}
+
+.map-pin {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 9999px;
+  border: 2px solid;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  box-shadow: 0 1px 4px rgb(0 0 0 / 0.45);
+  user-select: none;
+}
+
+.map-pin--drone-plan {
+  border-color: #93c5fd;
+  background: #3b82f6;
+  color: #eff6ff;
+}
+
+.map-pin--planner {
+  border-color: #fde68a;
+  background: #fbbf24;
+  color: #422006;
+}
+
+.map-pin--home {
+  border-color: #fca5a5;
+  background: #f97316;
+  color: #fff7ed;
+  font-size: 11px;
+}
+
+.map-drone {
+  position: relative;
+  width: 32px;
+  height: 32px;
+}
+
+.map-drone__body {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  filter: drop-shadow(0 1px 3px rgb(0 0 0 / 0.55));
+}
+
+.map-drone__heading {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.map-drone__arrow {
+  position: absolute;
+  left: 50%;
+  top: -1px;
+  width: 0;
+  height: 0;
+  transform: translateX(-50%);
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-bottom: 11px solid #4ade80;
+  filter: drop-shadow(0 0 2px rgb(0 0 0 / 0.6));
+}
+
 .dashboard-panel .leaflet-container {
   z-index: 0 !important;
 }
