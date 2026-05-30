@@ -125,6 +125,19 @@ body {
 .map-drone-host {
   background: transparent !important;
   border: none !important;
+  z-index: 10000 !important;
+}
+
+.map-drone--elevated {
+  transform: translateY(-12px);
+}
+
+.map-drone--elevated .map-drone__body {
+  filter: drop-shadow(0 3px 5px rgb(0 0 0 / 0.75));
+}
+
+.map-drone--elevated .map-drone__arrow {
+  filter: drop-shadow(0 1px 2px rgb(0 0 0 / 0.8));
 }
 
 .map-pin {

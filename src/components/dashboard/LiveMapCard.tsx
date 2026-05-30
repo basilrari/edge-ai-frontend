@@ -11,7 +11,14 @@ import type { PlannerWaypoint } from "../../lib/missionPlanner";
 import type { DroneMapMarker } from "../../lib/missionUtils";
 import { addSatelliteBasemap } from "../../lib/mapBasemap";
 import { MAP_MAX_ZOOM } from "../../lib/mapConstants";
-import { droneMapIcon, numberedMapIcon } from "../../lib/mapMarkers";
+import {
+  DRONE_MAP_PANE,
+  DRONE_MARKER_Z_INDEX,
+  HOME_MARKER_Z_INDEX,
+  droneMapIcon,
+  numberedMapIcon,
+  positionsNearM,
+} from "../../lib/mapMarkers";
 
 interface Props {
   activeWaypoints: Waypoint[];
@@ -40,6 +47,15 @@ interface Props {
 const DEFAULT_CENTER: [number, number] = [23.558, 120.473];
 const DEFAULT_HEIGHT_PX = 320;
 const DEFAULT_INITIAL_ZOOM = 18;
+
+/** Re-stack marker DOM so it paints above siblings in the same pane. */
+function bringMarkerDomToFront(marker: L.Marker): void {
+  const el = marker.getElement();
+  const parent = el?.parentElement;
+  if (parent && el) {
+    parent.appendChild(el);
+  }
+}
 
 export function LiveMapCard({
   activeWaypoints,
@@ -112,6 +128,9 @@ export function LiveMapCard({
 
     addSatelliteBasemap(map, mapMaxZoom, maptilerApiKey);
     L.control.scale({ imperial: false, maxWidth: 120 }).addTo(map);
+
+    const dronePane = map.createPane(DRONE_MAP_PANE);
+    dronePane.style.zIndex = "650";
 
     activeLayerRef.current = L.layerGroup().addTo(map);
     plannerLayerRef.current = L.layerGroup().addTo(map);
@@ -269,10 +288,13 @@ export function LiveMapCard({
           : "";
       L.marker([telemetry.homeLat, telemetry.homeLng], {
         icon: numberedMapIcon("H", "home"),
+        zIndexOffset: HOME_MARKER_Z_INDEX,
       })
         .bindTooltip(`Home${alt}`)
         .addTo(layer);
     }
+
+    droneRef.current && bringMarkerDomToFront(droneRef.current);
   }, [telemetry.homeLat, telemetry.homeLng, telemetry.homeAltM]);
 
   useEffect(() => {
@@ -281,6 +303,15 @@ export function LiveMapCard({
 
     if (telemetry.lat != null && telemetry.lng != null) {
       const pos: [number, number] = [telemetry.lat, telemetry.lng];
+      const atHome =
+        telemetry.homeLat != null &&
+        telemetry.homeLng != null &&
+        positionsNearM(
+          telemetry.lat,
+          telemetry.lng,
+          telemetry.homeLat,
+          telemetry.homeLng
+        );
       const headingLabel =
         telemetry.heading != null && Number.isFinite(telemetry.heading)
           ? ` · ${Math.round(telemetry.heading)}°`
@@ -288,16 +319,24 @@ export function LiveMapCard({
       const icon = droneMapIcon(
         telemetry.heading != null && Number.isFinite(telemetry.heading)
           ? telemetry.heading
-          : null
+          : null,
+        atHome
       );
       if (droneRef.current) {
         droneRef.current.setLatLng(pos);
         droneRef.current.setIcon(icon);
+        droneRef.current.setZIndexOffset(DRONE_MARKER_Z_INDEX);
+        bringMarkerDomToFront(droneRef.current);
         droneRef.current.getTooltip()?.setContent(`Drone${headingLabel}`);
       } else {
-        droneRef.current = L.marker(pos, { icon, zIndexOffset: 1000 })
+        droneRef.current = L.marker(pos, {
+          icon,
+          pane: DRONE_MAP_PANE,
+          zIndexOffset: DRONE_MARKER_Z_INDEX,
+        })
           .bindTooltip(`Drone${headingLabel}`)
           .addTo(map);
+        bringMarkerDomToFront(droneRef.current);
       }
     }
 
@@ -321,6 +360,8 @@ export function LiveMapCard({
     telemetry.lat,
     telemetry.lng,
     telemetry.heading,
+    telemetry.homeLat,
+    telemetry.homeLng,
     operator,
     showOperator,
   ]);
