@@ -2,12 +2,17 @@
 
 import React, { useMemo, useState } from "react";
 import clsx from "clsx";
-import { Download, Pause, Play, Search } from "lucide-react";
+import { Download, Pause, Play, Search, Trash2 } from "lucide-react";
 import { AppShell } from "./AppShell";
 import { useTimeDisplayContext } from "./TimeDisplayProvider";
 import { useLogsStream } from "../../hooks/useLogsStream";
 import { useLlmLogs } from "../../hooks/useLlmLogs";
-import { GATEWAY_URL } from "../../lib/gateway";
+import {
+  GATEWAY_URL,
+  clearAllLogs,
+  clearDroneLogs,
+  clearLlmLogs,
+} from "../../lib/gateway";
 import type { FlightLogEntry, LlmLogEntry, MavlinkLogEntry } from "../types";
 
 function flightToCsv(
@@ -56,6 +61,36 @@ function downloadText(filename: string, content: string): void {
   URL.revokeObjectURL(url);
 }
 
+function ClearLogsButton({
+  label,
+  onClear,
+  disabled,
+}: {
+  label: string;
+  onClear: () => void | Promise<void>;
+  disabled?: boolean;
+}): JSX.Element {
+  const [busy, setBusy] = useState(false);
+  return (
+    <button
+      type="button"
+      disabled={disabled || busy}
+      className="inline-flex items-center gap-1.5 text-[11px] text-dash-muted hover:text-rose-300 disabled:cursor-not-allowed disabled:opacity-40"
+      onClick={async () => {
+        setBusy(true);
+        try {
+          await onClear();
+        } finally {
+          setBusy(false);
+        }
+      }}
+    >
+      <Trash2 className="h-3.5 w-3.5" />
+      {busy ? "Clearing…" : label}
+    </button>
+  );
+}
+
 function PanelShell({
   title,
   accent,
@@ -88,13 +123,13 @@ function PanelShell({
         accentBorder
       )}
     >
-      <header className="flex shrink-0 items-center justify-between gap-2 border-b border-dash-border px-4 py-2.5">
-        <h2 className={clsx("text-[11px] font-semibold uppercase tracking-[0.14em]", accentText)}>
+      <header className="flex shrink-0 items-center justify-between gap-2 border-b border-dash-border px-4 py-2.5 min-w-0">
+        <h2 className={clsx("min-w-0 shrink text-[11px] font-semibold uppercase tracking-[0.14em]", accentText)}>
           {title}
         </h2>
         {headerRight}
       </header>
-      <div className="min-h-0 flex-1 overflow-hidden">{children}</div>
+      <div className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-hidden">{children}</div>
       {footer ? (
         <footer className="shrink-0 border-t border-dash-border px-4 py-2">{footer}</footer>
       ) : null}
@@ -106,10 +141,12 @@ function LlmOutputPanel({
   entries,
   loading,
   error,
+  onClear,
 }: {
   entries: LlmLogEntry[];
   loading: boolean;
   error: string | null;
+  onClear: () => void | Promise<void>;
 }): JSX.Element {
   const { formatLogTime, formatLogDate, label } = useTimeDisplayContext();
   const history = useMemo(() => [...entries].reverse(), [entries]);
@@ -149,24 +186,27 @@ function LlmOutputPanel({
         ) : null
       }
       footer={
-        selected ? (
-          <button
-            type="button"
-            className="inline-flex items-center gap-1.5 text-[11px] text-dash-muted hover:text-dash-text"
-            onClick={() =>
-              downloadText(
-                `llm-output-${selected.request_id.slice(0, 8)}.json`,
-                displayJson
-              )
-            }
-          >
-            <Download className="h-3.5 w-3.5" />
-            Download JSON
-          </button>
-        ) : undefined
+        <div className="flex flex-wrap items-center gap-3">
+          {selected ? (
+            <button
+              type="button"
+              className="inline-flex items-center gap-1.5 text-[11px] text-dash-muted hover:text-dash-text"
+              onClick={() =>
+                downloadText(
+                  `llm-output-${selected.request_id.slice(0, 8)}.json`,
+                  displayJson
+                )
+              }
+            >
+              <Download className="h-3.5 w-3.5" />
+              Download JSON
+            </button>
+          ) : null}
+          <ClearLogsButton label="Clear LLM logs" onClear={onClear} disabled={entries.length === 0} />
+        </div>
       }
     >
-      <div className="flex h-full min-h-0 flex-col">
+      <div className="flex h-full min-h-0 min-w-0 flex-col overflow-x-hidden">
         {error && (
           <p className="shrink-0 border-b border-dash-border px-3 py-2 text-xs text-dash-amber">
             {error}
@@ -188,7 +228,7 @@ function LlmOutputPanel({
               <p className="shrink-0 px-3 py-1.5 text-[10px] font-medium uppercase tracking-wide text-dash-muted">
                 History
               </p>
-              <ul className="dash-scroll min-h-0 flex-1 overflow-auto">
+              <ul className="dash-scroll min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto">
                 {history.map((entry) => {
                   const active = entry.request_id === selected?.request_id;
                   return (
@@ -198,22 +238,22 @@ function LlmOutputPanel({
                         onClick={() => setSelectedRequestId(entry.request_id)}
                         title={entry.prompt}
                         className={clsx(
-                          "w-full border-t border-dash-border/50 px-3 py-2 text-left transition-colors",
+                          "w-full min-w-0 border-t border-dash-border/50 px-3 py-2 text-left transition-colors",
                           active
                             ? "bg-dash-purple/10"
                             : "hover:bg-dash-bg/50"
                         )}
                       >
-                        <div className="flex items-center gap-2">
+                        <div className="flex min-w-0 items-start gap-2">
                           <span className="shrink-0 font-mono text-[10px] text-dash-muted">
                             {formatLogTime(entry.ts_ms)}
                           </span>
                           {entry.action_taken ? (
-                            <span className="text-[10px] text-dash-purple">
+                            <span className="shrink-0 text-[10px] text-dash-purple">
                               {entry.action_taken}
                             </span>
                           ) : null}
-                          <span className="min-w-0 flex-1 text-[10px] text-dash-text">
+                          <span className="allow-wrap min-w-0 flex-1 text-[10px] text-dash-text">
                             {entry.prompt.replace(/\s+/g, " ").trim()}
                           </span>
                         </div>
@@ -225,17 +265,17 @@ function LlmOutputPanel({
             </div>
 
             {selected ? (
-              <div className="flex min-h-0 flex-1 flex-col">
-                <div className="flex shrink-0 items-center gap-3 border-b border-dash-border px-3 py-1.5 text-[10px] text-dash-muted">
-                  <span>
+              <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-x-hidden">
+                <div className="allow-wrap flex shrink-0 flex-wrap items-start gap-x-3 gap-y-1 border-b border-dash-border px-3 py-1.5 text-[10px] text-dash-muted">
+                  <span className="shrink-0">
                     {formatLogDate(selected.ts_ms)} {formatLogTime(selected.ts_ms)} {label}
                   </span>
                   {selected.model ? (
-                    <span className="font-mono">{selected.model}</span>
+                    <span className="shrink-0 font-mono">{selected.model}</span>
                   ) : null}
-                  <span className="text-dash-text">{selected.prompt}</span>
+                  <span className="min-w-0 text-dash-text">{selected.prompt}</span>
                 </div>
-                <pre className="dash-scroll min-h-0 flex-1 overflow-auto bg-[#0b0e14] p-2 font-mono text-[10px] leading-relaxed text-dash-text">
+                <pre className="allow-wrap dash-scroll min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto bg-[#0b0e14] p-2 font-mono text-[10px] leading-relaxed text-dash-text">
                   {displayJson}
                 </pre>
               </div>
@@ -251,10 +291,12 @@ function FlightEventsPanel({
   entries,
   connected,
   error,
+  onClear,
 }: {
   entries: FlightLogEntry[];
   connected: boolean;
   error: string | null;
+  onClear: () => void | Promise<void>;
 }): JSX.Element {
   const { formatLogTime, label } = useTimeDisplayContext();
   const rows = useMemo(() => [...entries].reverse(), [entries]);
@@ -274,20 +316,23 @@ function FlightEventsPanel({
         </span>
       }
       footer={
-        <button
-          type="button"
-          className="inline-flex items-center gap-1.5 text-[11px] text-dash-muted hover:text-dash-text"
-          disabled={entries.length === 0}
-          onClick={() =>
-            downloadText("flight-log.csv", flightToCsv(entries, formatLogTime))
-          }
-        >
-          <Download className="h-3.5 w-3.5" />
-          Download Flight Log (CSV)
-        </button>
+        <div className="flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            className="inline-flex items-center gap-1.5 text-[11px] text-dash-muted hover:text-dash-text"
+            disabled={entries.length === 0}
+            onClick={() =>
+              downloadText("flight-log.csv", flightToCsv(entries, formatLogTime))
+            }
+          >
+            <Download className="h-3.5 w-3.5" />
+            Download Flight Log (CSV)
+          </button>
+          <ClearLogsButton label="Clear flight logs" onClear={onClear} disabled={entries.length === 0} />
+        </div>
       }
     >
-      <div className="dash-scroll h-full min-h-0 overflow-x-hidden overflow-y-auto">
+      <div className="dash-scroll h-full min-h-0 min-w-0 overflow-x-hidden overflow-y-auto">
         {error && (
           <p className="border-b border-dash-border px-3 py-2 text-xs text-dash-amber">
             {error}
@@ -318,7 +363,7 @@ function FlightEventsPanel({
                     <td className="whitespace-nowrap px-3 py-1.5 align-top text-dash-muted">
                       {formatLogTime(e.ts_ms)}
                     </td>
-                    <td className="allow-wrap px-3 py-1.5 align-top text-dash-blue">
+                    <td className="allow-wrap break-words px-3 py-1.5 align-top text-dash-blue">
                       {event}
                     </td>
                     <td className="allow-wrap break-words px-3 py-1.5 align-top text-dash-text">
@@ -338,9 +383,11 @@ function FlightEventsPanel({
 function PixhawkLogsPanel({
   entries,
   connected,
+  onClear,
 }: {
   entries: MavlinkLogEntry[];
   connected: boolean;
+  onClear: () => void | Promise<void>;
 }): JSX.Element {
   const { formatLogTime, label } = useTimeDisplayContext();
   const [paused, setPaused] = useState(false);
@@ -441,16 +488,19 @@ function PixhawkLogsPanel({
         </div>
       }
       footer={
-        <div className="flex items-center justify-between gap-2">
-          <button
-            type="button"
-            className="inline-flex items-center gap-1.5 text-[11px] text-dash-muted hover:text-dash-text"
-            disabled={entries.length === 0}
-            onClick={() => downloadText("pixhawk-log.txt", exportLines)}
-          >
-            <Download className="h-3.5 w-3.5" />
-            Download Log
-          </button>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              className="inline-flex items-center gap-1.5 text-[11px] text-dash-muted hover:text-dash-text"
+              disabled={entries.length === 0}
+              onClick={() => downloadText("pixhawk-log.txt", exportLines)}
+            >
+              <Download className="h-3.5 w-3.5" />
+              Download Log
+            </button>
+            <ClearLogsButton label="Clear Pixhawk logs" onClear={onClear} disabled={entries.length === 0} />
+          </div>
           <span
             className={clsx(
               "flex items-center gap-1.5 text-[10px] font-medium",
@@ -476,34 +526,36 @@ function PixhawkLogsPanel({
         </div>
       }
     >
-      <div className="dash-scroll h-full min-h-0 overflow-x-hidden overflow-y-auto">
+      <div className="dash-scroll h-full min-h-0 min-w-0 overflow-x-hidden overflow-y-auto">
         {rows.length === 0 && (
           <p className="px-4 py-6 text-center text-xs text-dash-muted">
             Waiting for MAVLink telemetry from the flight controller…
           </p>
         )}
         {rows.length > 0 && (
-          <table className="w-full border-collapse font-mono text-[11px]">
+          <table className="allow-wrap w-full table-fixed border-collapse font-mono text-[11px]">
             <thead className="sticky top-0 bg-dash-panel text-left text-[10px] uppercase tracking-wide text-dash-muted">
               <tr>
-                <th className="px-3 py-2 font-medium">Time ({label})</th>
-                <th className="px-3 py-2 font-medium">Message ID</th>
-                <th className="px-3 py-2 font-medium">Message</th>
+                <th className="w-[7.5rem] px-3 py-2 font-medium">Time ({label})</th>
+                <th className="w-[4.5rem] px-3 py-2 font-medium">Message ID</th>
+                <th className="w-[8.5rem] px-3 py-2 font-medium">Message</th>
                 <th className="px-3 py-2 font-medium">Value</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="allow-wrap">
               {rows.map((e, i) => (
                 <tr
                   key={`${e.ts_ms}-${e.msg_id}-${i}`}
-                  className="border-t border-dash-border/50 hover:bg-dash-bg/40"
+                  className="allow-wrap border-t border-dash-border/50 hover:bg-dash-bg/40"
                 >
-                  <td className="whitespace-nowrap px-3 py-1.5 text-dash-muted">
+                  <td className="whitespace-nowrap px-3 py-1.5 align-top text-dash-muted">
                     {formatLogTime(e.ts_ms)}
                   </td>
-                  <td className="px-3 py-1.5 text-dash-muted">{e.msg_id}</td>
-                  <td className="px-3 py-1.5 text-dash-accent">{e.msg_name}</td>
-                  <td className="whitespace-nowrap px-3 py-1.5 text-dash-text">
+                  <td className="allow-wrap px-3 py-1.5 align-top text-dash-muted">{e.msg_id}</td>
+                  <td className="allow-wrap break-words px-3 py-1.5 align-top text-dash-accent">
+                    {e.msg_name}
+                  </td>
+                  <td className="allow-wrap break-words px-3 py-1.5 align-top text-dash-text">
                     {e.value}
                   </td>
                 </tr>
@@ -518,29 +570,61 @@ function PixhawkLogsPanel({
 
 export function FlightLogsLayout(): JSX.Element {
   const gatewayUrl = GATEWAY_URL;
-  const { flightEntries, mavlinkEntries, connected, error } =
+  const { flightEntries, mavlinkEntries, connected, error, reload: reloadDroneLogs } =
     useLogsStream(gatewayUrl);
-  const { entries: llmEntries, loading: llmLoading, error: llmError } =
-    useLlmLogs(gatewayUrl);
+  const {
+    entries: llmEntries,
+    loading: llmLoading,
+    error: llmError,
+    reload: reloadLlmLogs,
+  } = useLlmLogs(gatewayUrl);
+
+  const handleClearAll = async () => {
+    await clearAllLogs();
+    reloadLlmLogs();
+    reloadDroneLogs();
+  };
 
   return (
     <AppShell pageTitle="Flight Logs" lockViewport>
       <div className="flex h-full min-h-0 flex-col gap-2">
-        <div className="flex shrink-0 items-baseline gap-3">
-          <h1 className="text-base font-semibold text-dash-text">Flight Logs</h1>
-          <p className="text-[11px] text-dash-muted">
-            LLM outputs, flight events, and live Pixhawk MAVLink messages.
-          </p>
+        <div className="flex shrink-0 flex-wrap items-center justify-between gap-3">
+          <div className="flex min-w-0 flex-wrap items-baseline gap-3">
+            <h1 className="text-base font-semibold text-dash-text">Flight Logs</h1>
+            <p className="text-[11px] text-dash-muted">
+              LLM outputs, flight events, and live Pixhawk MAVLink messages.
+            </p>
+          </div>
+          <ClearLogsButton label="Clear all logs" onClear={handleClearAll} />
         </div>
 
-        <div className="grid min-h-0 flex-1 grid-cols-1 gap-2 xl:grid-cols-[1.5fr_1.75fr_2.75fr]">
-          <LlmOutputPanel entries={llmEntries} loading={llmLoading} error={llmError} />
+        <div className="grid min-h-0 min-w-0 flex-1 grid-cols-1 gap-2 xl:grid-cols-[1.5fr_1.75fr_2.75fr]">
+          <LlmOutputPanel
+            entries={llmEntries}
+            loading={llmLoading}
+            error={llmError}
+            onClear={async () => {
+              await clearLlmLogs();
+              reloadLlmLogs();
+            }}
+          />
           <FlightEventsPanel
             entries={flightEntries}
             connected={connected}
             error={error}
+            onClear={async () => {
+              await clearDroneLogs("flight");
+              reloadDroneLogs();
+            }}
           />
-          <PixhawkLogsPanel entries={mavlinkEntries} connected={connected} />
+          <PixhawkLogsPanel
+            entries={mavlinkEntries}
+            connected={connected}
+            onClear={async () => {
+              await clearDroneLogs("mavlink");
+              reloadDroneLogs();
+            }}
+          />
         </div>
       </div>
     </AppShell>

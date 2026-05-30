@@ -4,6 +4,7 @@ import React, { useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import { AppShell } from "./AppShell";
 import { MissionPromptCard } from "./MissionPromptCard";
+import { LlmOutputCard } from "./LlmOutputCard";
 import { TelemetryHUDCard } from "./TelemetryHUDCard";
 import { MissionOverviewCard } from "./MissionOverviewCard";
 import { FlightLogsCard } from "./FlightLogsCard";
@@ -11,6 +12,7 @@ import { buildMissionLegs, computeMissionStats } from "../../lib/missionUtils";
 import { useTelemetry } from "../../hooks/useTelemetry";
 import { useMission } from "../../hooks/useMission";
 import { useFlightLogs } from "../../hooks/useFlightLogs";
+import { useLlmLogs } from "../../hooks/useLlmLogs";
 import { GATEWAY_URL, sendInferPrompt } from "../../lib/gateway";
 import { MAP_MAX_ZOOM } from "../../lib/mapConstants";
 
@@ -44,6 +46,12 @@ export function DashboardLayout({
     loading: logsLoading,
     error: logsError,
   } = useFlightLogs(gatewayUrl);
+  const {
+    entries: llmEntries,
+    loading: llmLoading,
+    error: llmError,
+    reload: reloadLlmLogs,
+  } = useLlmLogs(gatewayUrl);
 
   const [promptLoading, setPromptLoading] = useState(false);
   const [promptError, setPromptError] = useState<string | null>(null);
@@ -72,6 +80,7 @@ export function DashboardLayout({
           tools ? `Mission sent: ${tools}` : `Agent responded: ${data.action_taken}`
         );
       }
+      reloadLlmLogs();
     } catch (e) {
       setPromptError(e instanceof Error ? e.message : "Failed to send prompt");
     } finally {
@@ -82,16 +91,25 @@ export function DashboardLayout({
   return (
     <AppShell pageTitle="Mission Control" lockViewport>
       <div className="flex h-full min-h-0 flex-col gap-2">
-        <div className="grid min-h-0 flex-1 grid-cols-1 gap-2 lg:grid-cols-5">
-          <div className="lg:col-span-2">
+        <div className="grid min-h-0 flex-1 grid-cols-1 gap-2 xl:grid-cols-12">
+          <div className="flex min-h-0 flex-col xl:col-span-3">
             <MissionPromptCard
               onSend={handleSendPrompt}
               loading={promptLoading}
               error={promptError}
               successMessage={promptSuccess}
+              fillHeight
             />
           </div>
-          <div className="flex min-h-0 flex-col lg:col-span-3">
+          <div className="flex min-h-0 flex-col xl:col-span-3">
+            <LlmOutputCard
+              entries={llmEntries}
+              loading={llmLoading}
+              error={llmError}
+              fillHeight
+            />
+          </div>
+          <div className="flex min-h-0 flex-col xl:col-span-6">
             <LiveMapCard
               activeWaypoints={waypoints}
               telemetry={telemetry}

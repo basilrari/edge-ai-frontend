@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { LlmLogEntry } from "../components/types";
 import { newRequestId } from "../lib/gateway";
 
@@ -8,10 +8,14 @@ export function useLlmLogs(gatewayUrl: string): {
   entries: LlmLogEntry[];
   loading: boolean;
   error: string | null;
+  reload: () => void;
 } {
   const [entries, setEntries] = useState<LlmLogEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [refreshNonce, setRefreshNonce] = useState(0);
+
+  const reload = useCallback(() => setRefreshNonce((n) => n + 1), []);
 
   useEffect(() => {
     let active = true;
@@ -42,7 +46,7 @@ export function useLlmLogs(gatewayUrl: string): {
       active = false;
       clearInterval(id);
     };
-  }, [gatewayUrl]);
+  }, [gatewayUrl, refreshNonce]);
 
-  return { entries, loading, error };
+  return { entries, loading, error, reload };
 }

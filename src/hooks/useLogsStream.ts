@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type {
   FlightLogEntry,
   LogWsMessage,
@@ -59,12 +59,16 @@ export function useLogsStream(gatewayUrl: string): {
   mavlinkEntries: MavlinkLogEntry[];
   connected: boolean;
   error: string | null;
+  reload: () => void;
 } {
   const [flightEntries, setFlightEntries] = useState<FlightLogEntry[]>([]);
   const [mavlinkEntries, setMavlinkEntries] = useState<MavlinkLogEntry[]>([]);
   const [connected, setConnected] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [refreshNonce, setRefreshNonce] = useState(0);
   const connectedRef = useRef(false);
+
+  const reload = useCallback(() => setRefreshNonce((n) => n + 1), []);
 
   useEffect(() => {
     connectedRef.current = connected;
@@ -81,8 +85,8 @@ export function useLogsStream(gatewayUrl: string): {
     const loadHttp = async () => {
       const snap = await fetchLogSnapshot(base);
       if (!active) return;
-      if (snap.flight.length > 0) setFlightEntries(snap.flight);
-      if (snap.mavlink.length > 0) setMavlinkEntries(snap.mavlink);
+      setFlightEntries(snap.flight);
+      setMavlinkEntries(snap.mavlink);
       if (snap.httpError && !connectedRef.current) setError(snap.httpError);
     };
 
@@ -156,7 +160,7 @@ export function useLogsStream(gatewayUrl: string): {
       if (pollTimer) clearInterval(pollTimer);
       socket?.close();
     };
-  }, [gatewayUrl]);
+  }, [gatewayUrl, refreshNonce]);
 
-  return { flightEntries, mavlinkEntries, connected, error };
+  return { flightEntries, mavlinkEntries, connected, error, reload };
 }

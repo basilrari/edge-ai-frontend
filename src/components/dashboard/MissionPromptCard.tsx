@@ -10,6 +10,7 @@ interface Props {
   loading: boolean;
   error: string | null;
   successMessage: string | null;
+  fillHeight?: boolean;
 }
 
 export function MissionPromptCard({
@@ -17,6 +18,7 @@ export function MissionPromptCard({
   loading,
   error,
   successMessage,
+  fillHeight = false,
 }: Props): JSX.Element {
   const [value, setValue] = useState("");
 
@@ -30,7 +32,8 @@ export function MissionPromptCard({
   return (
     <DashboardCard
       title="Send Prompt / Mission"
-      className="h-full"
+      className={fillHeight ? "h-full min-h-0" : "h-full"}
+      bodyClassName="flex min-h-0 flex-col"
       headerRight={<Info className="h-3.5 w-3.5 text-dash-muted" aria-hidden />}
     >
       <form onSubmit={handleSubmit} className="flex h-full flex-col gap-3">

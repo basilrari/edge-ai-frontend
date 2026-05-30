@@ -36,10 +36,18 @@ body {
 .dashboard-app textarea,
 .dashboard-app .allow-wrap {
   white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .dashboard-app pre {
   white-space: pre;
+}
+
+.dashboard-app pre.allow-wrap {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .dash-scroll {

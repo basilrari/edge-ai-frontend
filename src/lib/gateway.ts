@@ -90,3 +90,65 @@ export async function clearDroneMission(): Promise<MissionClearResponse> {
   }
   return data;
 }
+
+export type LogClearTarget = "flight" | "mavlink" | "all";
+
+export interface LogClearResponse {
+  ok: boolean;
+  error?: string;
+}
+
+async function parseLogClearResponse(
+  res: Response,
+  label: string
+): Promise<LogClearResponse> {
+  const text = await res.text();
+  let data: LogClearResponse;
+  try {
+    data = text ? (JSON.parse(text) as LogClearResponse) : { ok: false };
+  } catch {
+    throw new Error(
+      res.ok
+        ? `${label} returned invalid JSON`
+        : `${label} failed (${res.status}): ${text || "empty response"}`
+    );
+  }
+  if (!res.ok || !data.ok) {
+    throw new Error(data.error ?? `${label} status ${res.status}`);
+  }
+  return data;
+}
+
+export async function clearDroneLogs(
+  target: LogClearTarget = "all"
+): Promise<LogClearResponse> {
+  const res = await fetch(`${GATEWAY_URL}/drone/logs/clear`, {
+    method: "POST",
+    headers: gatewayJsonHeaders(),
+    body: JSON.stringify({ target }),
+  });
+  return parseLogClearResponse(res, "Clear drone logs");
+}
+
+export async function clearLlmLogs(): Promise<LogClearResponse> {
+  const res = await fetch(`${GATEWAY_URL}/logs/llm/clear`, {
+    method: "POST",
+    headers: gatewayJsonHeaders(),
+  });
+  return parseLogClearResponse(res, "Clear LLM logs");
+}
+
+export async function clearAllLogs(): Promise<{ ok: boolean; drone_ok?: boolean }> {
+  const res = await fetch(`${GATEWAY_URL}/logs/clear-all`, {
+    method: "POST",
+    headers: gatewayJsonHeaders(),
+  });
+  const text = await res.text();
+  const data = text
+    ? (JSON.parse(text) as { ok: boolean; drone_ok?: boolean })
+    : { ok: false };
+  if (!res.ok || !data.ok) {
+    throw new Error("Clear all logs failed");
+  }
+  return data;
+}
