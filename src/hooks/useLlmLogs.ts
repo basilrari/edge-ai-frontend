@@ -9,6 +9,7 @@ export function useLlmLogs(gatewayUrl: string): {
   loading: boolean;
   error: string | null;
   reload: () => void;
+  resetEntries: () => void;
 } {
   const [entries, setEntries] = useState<LlmLogEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -16,6 +17,12 @@ export function useLlmLogs(gatewayUrl: string): {
   const [refreshNonce, setRefreshNonce] = useState(0);
 
   const reload = useCallback(() => setRefreshNonce((n) => n + 1), []);
+
+  const resetEntries = useCallback(() => {
+    setEntries([]);
+    setLoading(false);
+    setError(null);
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -48,5 +55,5 @@ export function useLlmLogs(gatewayUrl: string): {
     };
   }, [gatewayUrl, refreshNonce]);
 
-  return { entries, loading, error, reload };
+  return { entries, loading, error, reload, resetEntries };
 }

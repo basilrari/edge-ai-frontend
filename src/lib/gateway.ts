@@ -143,10 +143,27 @@ export async function clearAllLogs(): Promise<{ ok: boolean; drone_ok?: boolean 
     method: "POST",
     headers: gatewayJsonHeaders(),
   });
+  if (res.status === 404) {
+    const [llm, drone] = await Promise.all([
+      clearLlmLogs().catch(() => null),
+      clearDroneLogs("all").catch(() => null),
+    ]);
+    if (!llm && !drone) {
+      throw new Error(
+        "Clear all logs failed (gateway missing /logs/clear-all — run ./sar-stack.sh build && ./sar-stack.sh restart)"
+      );
+    }
+    return { ok: true, drone_ok: drone != null };
+  }
   const text = await res.text();
-  const data = text
-    ? (JSON.parse(text) as { ok: boolean; drone_ok?: boolean })
-    : { ok: false };
+  let data: { ok: boolean; drone_ok?: boolean };
+  try {
+    data = text
+      ? (JSON.parse(text) as { ok: boolean; drone_ok?: boolean })
+      : { ok: false };
+  } catch {
+    throw new Error(`Clear all logs failed (${res.status})`);
+  }
   if (!res.ok || !data.ok) {
     throw new Error("Clear all logs failed");
   }

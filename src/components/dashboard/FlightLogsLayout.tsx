@@ -71,23 +71,32 @@ function ClearLogsButton({
   disabled?: boolean;
 }): JSX.Element {
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   return (
-    <button
-      type="button"
-      disabled={disabled || busy}
-      className="inline-flex items-center gap-1.5 text-[11px] text-dash-muted hover:text-rose-300 disabled:cursor-not-allowed disabled:opacity-40"
-      onClick={async () => {
-        setBusy(true);
-        try {
-          await onClear();
-        } finally {
-          setBusy(false);
-        }
-      }}
-    >
-      <Trash2 className="h-3.5 w-3.5" />
-      {busy ? "Clearing…" : label}
-    </button>
+    <div className="flex flex-col items-end gap-1">
+      <button
+        type="button"
+        disabled={disabled || busy}
+        className="inline-flex items-center gap-1.5 text-[11px] text-dash-muted hover:text-rose-300 disabled:cursor-not-allowed disabled:opacity-40"
+        onClick={async () => {
+          setError(null);
+          setBusy(true);
+          try {
+            await onClear();
+          } catch (e) {
+            setError(e instanceof Error ? e.message : "Clear failed");
+          } finally {
+            setBusy(false);
+          }
+        }}
+      >
+        <Trash2 className="h-3.5 w-3.5" />
+        {busy ? "Clearing…" : label}
+      </button>
+      {error ? (
+        <p className="max-w-[280px] text-right text-[10px] text-rose-300">{error}</p>
+      ) : null}
+    </div>
   );
 }
 
@@ -244,18 +253,20 @@ function LlmOutputPanel({
                             : "hover:bg-dash-bg/50"
                         )}
                       >
-                        <div className="flex min-w-0 items-start gap-2">
-                          <span className="shrink-0 font-mono text-[10px] text-dash-muted">
-                            {formatLogTime(entry.ts_ms)}
-                          </span>
+                        <div className="flex min-w-0 flex-col gap-1">
+                          <div className="flex min-w-0 items-baseline gap-2">
+                            <span className="shrink-0 font-mono text-[10px] text-dash-muted">
+                              {formatLogTime(entry.ts_ms)}
+                            </span>
+                            <span className="allow-wrap min-w-0 flex-1 break-words text-[10px] text-dash-text">
+                              {entry.prompt.replace(/\s+/g, " ").trim()}
+                            </span>
+                          </div>
                           {entry.action_taken ? (
-                            <span className="shrink-0 text-[10px] text-dash-purple">
+                            <span className="allow-wrap break-words font-mono text-[10px] text-dash-purple">
                               {entry.action_taken}
                             </span>
                           ) : null}
-                          <span className="allow-wrap min-w-0 flex-1 text-[10px] text-dash-text">
-                            {entry.prompt.replace(/\s+/g, " ").trim()}
-                          </span>
                         </div>
                       </button>
                     </li>
@@ -570,17 +581,20 @@ function PixhawkLogsPanel({
 
 export function FlightLogsLayout(): JSX.Element {
   const gatewayUrl = GATEWAY_URL;
-  const { flightEntries, mavlinkEntries, connected, error, reload: reloadDroneLogs } =
+  const { flightEntries, mavlinkEntries, connected, error, reload: reloadDroneLogs, resetEntries: resetDroneLogs } =
     useLogsStream(gatewayUrl);
   const {
     entries: llmEntries,
     loading: llmLoading,
     error: llmError,
     reload: reloadLlmLogs,
+    resetEntries: resetLlmLogs,
   } = useLlmLogs(gatewayUrl);
 
   const handleClearAll = async () => {
     await clearAllLogs();
+    resetLlmLogs();
+    resetDroneLogs();
     reloadLlmLogs();
     reloadDroneLogs();
   };
@@ -605,6 +619,7 @@ export function FlightLogsLayout(): JSX.Element {
             error={llmError}
             onClear={async () => {
               await clearLlmLogs();
+              resetLlmLogs();
               reloadLlmLogs();
             }}
           />
@@ -614,6 +629,7 @@ export function FlightLogsLayout(): JSX.Element {
             error={error}
             onClear={async () => {
               await clearDroneLogs("flight");
+              resetDroneLogs();
               reloadDroneLogs();
             }}
           />
@@ -622,6 +638,7 @@ export function FlightLogsLayout(): JSX.Element {
             connected={connected}
             onClear={async () => {
               await clearDroneLogs("mavlink");
+              resetDroneLogs();
               reloadDroneLogs();
             }}
           />
