@@ -3,7 +3,7 @@
 import React from "react";
 import { AppShell } from "./AppShell";
 import { useTimeDisplayContext } from "./TimeDisplayProvider";
-import { GATEWAY_URL } from "../../lib/gateway";
+import { getGatewayUrl } from "../../lib/gateway";
 import {
   COMMON_TIMEZONES,
   timezoneModeLabel,
@@ -67,11 +67,11 @@ function SettingsContent(): JSX.Element {
         <dl className="space-y-2 text-sm">
           <div className="flex gap-3">
             <dt className="w-28 shrink-0 text-dash-muted">Gateway</dt>
-            <dd className="font-mono text-dash-text">{GATEWAY_URL}</dd>
+            <dd className="font-mono text-dash-text">{getGatewayUrl()}</dd>
           </div>
           <div className="flex gap-3">
             <dt className="w-28 shrink-0 text-dash-muted">Camera</dt>
-            <dd className="font-mono text-dash-text">{GATEWAY_URL}/camera/stream</dd>
+            <dd className="font-mono text-dash-text">{getGatewayUrl()}/camera/stream</dd>
           </div>
         </dl>
       </section>

@@ -8,12 +8,13 @@ import { useTimeDisplayContext } from "./TimeDisplayProvider";
 import { useLogsStream } from "../../hooks/useLogsStream";
 import { useLlmLogs } from "../../hooks/useLlmLogs";
 import {
-  GATEWAY_URL,
+  getGatewayUrl,
   clearAllLogs,
   clearDroneLogs,
   clearLlmLogs,
 } from "../../lib/gateway";
 import type { FlightLogEntry, LlmLogEntry, MavlinkLogEntry } from "../types";
+import { normalizeMavlinkList } from "../../lib/mavlinkLog";
 
 function flightToCsv(
   entries: FlightLogEntry[],
@@ -408,7 +409,8 @@ function PixhawkLogsPanel({
   const [filter, setFilter] = useState("");
   const [search, setSearch] = useState("");
 
-  const sourceEntries = paused ? frozenEntries : entries;
+  const normalizedEntries = useMemo(() => normalizeMavlinkList(entries), [entries]);
+  const sourceEntries = paused ? frozenEntries : normalizedEntries;
   const visibleCount = sourceEntries.length;
 
   React.useEffect(() => {
@@ -429,22 +431,22 @@ function PixhawkLogsPanel({
       setPaused(false);
       return;
     }
-    setFrozenEntries([...entries]);
+    setFrozenEntries([...normalizedEntries]);
     setPaused(true);
   };
 
   const rows = useMemo(() => {
     let list = [...sourceEntries];
     if (filter) {
-      list = list.filter((e) => e.msg_name === filter);
+      list = list.filter((e) => (e.msg_name || "") === filter);
     }
     if (search.trim()) {
       const q = search.trim().toLowerCase();
-      list = list.filter(
-        (e) =>
-          e.msg_name.toLowerCase().includes(q) ||
-          e.value.toLowerCase().includes(q)
-      );
+      list = list.filter((e) => {
+        const name = (e.msg_name || "").toLowerCase();
+        const value = (e.value || "").toLowerCase();
+        return name.includes(q) || value.includes(q);
+      });
     }
     if (!paused) {
       list = list.slice(-200);
@@ -453,14 +455,14 @@ function PixhawkLogsPanel({
   }, [sourceEntries, filter, search, paused]);
 
   const messageTypes = useMemo(() => {
-    const set = new Set(entries.map((e) => e.msg_name));
+    const set = new Set(normalizedEntries.map((e) => e.msg_name).filter(Boolean));
     return Array.from(set).sort();
-  }, [entries]);
+  }, [normalizedEntries]);
 
-  const exportLines = entries
+  const exportLines = normalizedEntries
     .map(
       (e) =>
-        `${formatLogTime(e.ts_ms)}\t${e.msg_id}\t${e.msg_name}\t${e.value.replace(/\t/g, " ")}`
+        `${formatLogTime(e.ts_ms)}\t${e.msg_id}\t${e.msg_name}\t${(e.value || "").replace(/\t/g, " ")}`
     )
     .join("\n");
 
@@ -604,7 +606,7 @@ function PixhawkLogsPanel({
 }
 
 export function FlightLogsLayout(): JSX.Element {
-  const gatewayUrl = GATEWAY_URL;
+  const gatewayUrl = getGatewayUrl();
   const { flightEntries, mavlinkEntries, connected, error, reload: reloadDroneLogs, resetEntries: resetDroneLogs } =
     useLogsStream(gatewayUrl);
   const {

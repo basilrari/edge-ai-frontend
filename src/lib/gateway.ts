@@ -1,7 +1,19 @@
 import type { ApiResponse } from "../components/types";
 
-export const GATEWAY_URL =
-  process.env.NEXT_PUBLIC_GATEWAY_URL ?? "http://localhost:3000";
+const ENV_GATEWAY = process.env.NEXT_PUBLIC_GATEWAY_URL?.replace(/\/$/, "");
+
+export function getGatewayUrl(): string {
+  if (ENV_GATEWAY) return ENV_GATEWAY;
+  if (typeof window !== "undefined") {
+    const host = window.location.hostname;
+    if (host === "localhost" || host === "127.0.0.1") {
+      return "http://127.0.0.1:3000";
+    }
+  }
+  return "https://edge-ai.basilrari.com";
+}
+
+export const GATEWAY_URL = ENV_GATEWAY || "https://edge-ai.basilrari.com";
 
 export function newRequestId(): string {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
@@ -18,7 +30,7 @@ export function gatewayJsonHeaders(): HeadersInit {
 }
 
 export async function sendInferPrompt(prompt: string): Promise<ApiResponse> {
-  const res = await fetch(`${GATEWAY_URL}/infer`, {
+  const res = await fetch(`${getGatewayUrl()}/infer`, {
     method: "POST",
     headers: gatewayJsonHeaders(),
     body: JSON.stringify({ Infer: { prompt } }),
@@ -38,7 +50,7 @@ export interface MissionUploadResponse {
 export async function uploadMission(
   body: import("./missionPlanner").MissionUploadBody
 ): Promise<MissionUploadResponse> {
-  const res = await fetch(`${GATEWAY_URL}/drone/mission/upload`, {
+  const res = await fetch(`${getGatewayUrl()}/drone/mission/upload`, {
     method: "POST",
     headers: gatewayJsonHeaders(),
     body: JSON.stringify(body),
@@ -68,7 +80,7 @@ export interface MissionClearResponse {
 }
 
 export async function clearDroneMission(): Promise<MissionClearResponse> {
-  const res = await fetch(`${GATEWAY_URL}/drone/mission/clear`, {
+  const res = await fetch(`${getGatewayUrl()}/drone/mission/clear`, {
     method: "POST",
     headers: gatewayJsonHeaders(),
   });
@@ -122,7 +134,7 @@ async function parseLogClearResponse(
 export async function clearDroneLogs(
   target: LogClearTarget = "all"
 ): Promise<LogClearResponse> {
-  const res = await fetch(`${GATEWAY_URL}/drone/logs/clear`, {
+  const res = await fetch(`${getGatewayUrl()}/drone/logs/clear`, {
     method: "POST",
     headers: gatewayJsonHeaders(),
     body: JSON.stringify({ target }),
@@ -131,7 +143,7 @@ export async function clearDroneLogs(
 }
 
 export async function clearLlmLogs(): Promise<LogClearResponse> {
-  const res = await fetch(`${GATEWAY_URL}/logs/llm/clear`, {
+  const res = await fetch(`${getGatewayUrl()}/logs/llm/clear`, {
     method: "POST",
     headers: gatewayJsonHeaders(),
   });
@@ -139,7 +151,7 @@ export async function clearLlmLogs(): Promise<LogClearResponse> {
 }
 
 export async function clearAllLogs(): Promise<{ ok: boolean; drone_ok?: boolean }> {
-  const res = await fetch(`${GATEWAY_URL}/logs/clear-all`, {
+  const res = await fetch(`${getGatewayUrl()}/logs/clear-all`, {
     method: "POST",
     headers: gatewayJsonHeaders(),
   });

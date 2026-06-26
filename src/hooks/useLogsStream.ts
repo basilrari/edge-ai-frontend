@@ -7,6 +7,7 @@ import type {
   MavlinkLogEntry,
 } from "../components/types";
 import { newRequestId } from "../lib/gateway";
+import { normalizeMavlinkEntry, normalizeMavlinkList } from "../lib/mavlinkLog";
 
 function httpToWs(httpUrl: string): string {
   return httpUrl.replace(/^https:/, "wss:").replace(/^http:/, "ws:");
@@ -43,7 +44,7 @@ async function fetchLogSnapshot(gatewayUrl: string): Promise<{
     }
     if (mavlinkRes.ok) {
       const data = (await mavlinkRes.json()) as { entries?: MavlinkLogEntry[] };
-      mavlink = data.entries ?? [];
+      mavlink = normalizeMavlinkList(data.entries ?? []);
     } else if (!httpError) {
       httpError = `mavlink logs HTTP ${mavlinkRes.status}`;
     }
@@ -131,7 +132,7 @@ export function useLogsStream(gatewayUrl: string): {
           switch (msg.type) {
             case "snapshot":
               setFlightEntries(msg.flight ?? []);
-              setMavlinkEntries(msg.mavlink ?? []);
+              setMavlinkEntries(normalizeMavlinkList(msg.mavlink ?? []));
               break;
             case "flight":
               setFlightEntries((prev) =>
@@ -139,9 +140,11 @@ export function useLogsStream(gatewayUrl: string): {
               );
               break;
             case "mavlink":
-              setMavlinkEntries((prev) =>
-                appendCapped(prev, msg.entry, MAX_MAVLINK)
-              );
+              if (msg.entry) {
+                setMavlinkEntries((prev) =>
+                  appendCapped(prev, normalizeMavlinkEntry(msg.entry), MAX_MAVLINK)
+                );
+              }
               break;
             default:
               break;

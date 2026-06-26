@@ -7,7 +7,7 @@ import { DashboardNavbar } from "./DashboardNavbar";
 import { DashboardSidebar } from "./DashboardSidebar";
 import { TimeDisplayProvider } from "./TimeDisplayProvider";
 import { useTelemetry } from "../../hooks/useTelemetry";
-import { GATEWAY_URL } from "../../lib/gateway";
+import { getGatewayUrl } from "../../lib/gateway";
 import { fmtLinkKind } from "../../lib/format";
 
 interface Props {
@@ -23,7 +23,7 @@ export function AppShell({
   lockViewport = false,
 }: Props): JSX.Element {
   const pathname = usePathname();
-  const gatewayUrl = GATEWAY_URL;
+  const gatewayUrl = getGatewayUrl();
   const { live, connected, telemetry } = useTelemetry(gatewayUrl);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 

@@ -13,7 +13,7 @@ import { useTelemetry } from "../../hooks/useTelemetry";
 import { useMission } from "../../hooks/useMission";
 import { useFlightLogs } from "../../hooks/useFlightLogs";
 import { useLlmLogs } from "../../hooks/useLlmLogs";
-import { GATEWAY_URL, sendInferPrompt } from "../../lib/gateway";
+import { getGatewayUrl, sendInferPrompt } from "../../lib/gateway";
 import { MAP_MAX_ZOOM } from "../../lib/mapConstants";
 
 const LiveMapCard = dynamic(
@@ -33,7 +33,7 @@ export function DashboardLayout({
 }: {
   maptilerApiKey?: string;
 }): JSX.Element {
-  const gatewayUrl = GATEWAY_URL;
+  const gatewayUrl = getGatewayUrl();
   const { telemetry, secondsSinceUpdate } = useTelemetry(gatewayUrl);
   const {
     waypoints,
