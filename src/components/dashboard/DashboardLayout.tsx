@@ -13,9 +13,7 @@ import { useTelemetry } from "../../hooks/useTelemetry";
 import { useMission } from "../../hooks/useMission";
 import { useFlightLogs } from "../../hooks/useFlightLogs";
 import { useLlmLogs } from "../../hooks/useLlmLogs";
-import { buildInferTraceExport, getGatewayUrl, sendInferPrompt } from "../../lib/gateway";
-import type { InferResult } from "../types";
-import { PipelineTimingCard } from "./PipelineTimingCard";
+import { getGatewayUrl, sendInferPrompt } from "../../lib/gateway";
 import { MAP_MAX_ZOOM } from "../../lib/mapConstants";
 
 const LiveMapCard = dynamic(
@@ -58,7 +56,6 @@ export function DashboardLayout({
   const [promptLoading, setPromptLoading] = useState(false);
   const [promptError, setPromptError] = useState<string | null>(null);
   const [promptSuccess, setPromptSuccess] = useState<string | null>(null);
-  const [lastInferResult, setLastInferResult] = useState<InferResult | null>(null);
 
   const missionLegs = useMemo(() => buildMissionLegs(mission), [mission]);
   const missionStats = useMemo(
@@ -72,7 +69,6 @@ export function DashboardLayout({
     setPromptSuccess(null);
     try {
       const inferResult = await sendInferPrompt(prompt);
-      setLastInferResult(inferResult);
       const data = inferResult.response;
       const tools =
         data.tools?.map((t) => `${t.category}:${t.name}`).join(" → ") ??
@@ -104,18 +100,6 @@ export function DashboardLayout({
               error={promptError}
               successMessage={promptSuccess}
               fillHeight
-            />
-            <PipelineTimingCard
-              result={lastInferResult}
-              onCopy={
-                lastInferResult
-                  ? () => {
-                      void navigator.clipboard.writeText(
-                        buildInferTraceExport(lastInferResult)
-                      );
-                    }
-                  : undefined
-              }
             />
           </div>
           <div className="flex min-h-0 flex-col xl:col-span-3">
