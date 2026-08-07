@@ -10,6 +10,7 @@ This frontend is the operator UI for the [SAR drone system](../README.md). Promp
 
 - **Stack**: Next.js 15 (App Router), React 18, TypeScript, Tailwind CSS, Leaflet, Lucide React
 - **Backend**: Gateway at `NEXT_PUBLIC_GATEWAY_URL` (default `http://localhost:3000`)
+- **Production UI**: [https://edge-ai-frontend-mauve.vercel.app](https://edge-ai-frontend-mauve.vercel.app) — set `NEXT_PUBLIC_GATEWAY_URL=https://edge-ai.basilrari.com` in Vercel env and redeploy after changes.
 - **Features**: Live map, HUD telemetry, mission waypoints, drone flight logs, send prompt to drone via `/infer`
 
 ## Setup
@@ -22,7 +23,11 @@ Optional `.env.local`:
 
 ```env
 NEXT_PUBLIC_GATEWAY_URL=http://localhost:3000
+# Production (Vercel):
+# NEXT_PUBLIC_GATEWAY_URL=https://edge-ai.basilrari.com
 ```
+
+Live camera: `https://edge-ai-frontend-mauve.vercel.app/camera` (WebRTC via gateway + TURN on the Jetson).
 
 Run the [gateway](../gateway/) and [drone-http](../drone-server/) stack before using the dashboard.
 

@@ -6,7 +6,7 @@ import {
   fetchWebRtcIceConfig,
 } from "../lib/camera";
 
-export type CameraWebRtcState = "idle" | "connecting" | "live" | "error";
+export type CameraWebRtcState = "idle" | "connecting" | "live" | "reconnecting" | "error";
 
 function waitForIceGathering(pc: RTCPeerConnection, timeoutMs: number): Promise<void> {
   if (pc.iceGatheringState === "complete") {
@@ -91,11 +91,46 @@ export function useCameraWebRTC(enabled: boolean): {
         void el.play().catch(() => {});
         setState("live");
       };
+
+      let disconnectTimer: number | undefined;
+      const scheduleReconnect = (reason: string) => {
+        if (cancelled) return;
+        window.setTimeout(() => {
+          if (!cancelled) {
+            setError(reason);
+            setAttempt((n) => n + 1);
+          }
+        }, 2500);
+      };
+
       pc.onconnectionstatechange = () => {
         if (cancelled) return;
-        if (pc.connectionState === "failed" || pc.connectionState === "disconnected") {
-          setState("error");
-          setError(`WebRTC ${pc.connectionState}`);
+        const s = pc.connectionState;
+        if (s === "connected") {
+          window.clearTimeout(disconnectTimer);
+          setState("live");
+          setError(null);
+          return;
+        }
+        if (s === "disconnected") {
+          // Keep last frame visible; ICE often recovers without a full re-offer.
+          window.clearTimeout(disconnectTimer);
+          disconnectTimer = window.setTimeout(() => {
+            if (cancelled) return;
+            if (
+              pc.connectionState === "disconnected" ||
+              pc.connectionState === "failed"
+            ) {
+              setState("connecting");
+              scheduleReconnect("WebRTC connection lost — reconnecting");
+            }
+          }, 8000);
+          return;
+        }
+        if (s === "failed" || s === "closed") {
+          window.clearTimeout(disconnectTimer);
+          setState("connecting");
+          scheduleReconnect(`WebRTC ${s} — reconnecting`);
         }
       };
 
@@ -185,5 +220,9 @@ export function useCameraWebRTC(enabled: boolean): {
     };
   }, [enabled, attempt, teardown]);
 
-  return { videoRef, state, error, retry };
+  // Show last frame while reconnecting (not full offline overlay).
+  const displayState: CameraWebRtcState =
+    state === "connecting" && attempt > 0 ? "reconnecting" : state;
+
+  return { videoRef, state: displayState, error, retry };
 }

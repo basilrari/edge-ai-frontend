@@ -14,6 +14,7 @@ export function LiveCameraCard({ fullHeight = false }: Props): JSX.Element {
   const { videoRef, state, error, retry } = useCameraWebRTC(true);
   const offline = state === "error";
   const connecting = state === "connecting" || state === "idle";
+  const reconnecting = state === "reconnecting";
 
   return (
     <DashboardCard
@@ -30,12 +31,14 @@ export function LiveCameraCard({ fullHeight = false }: Props): JSX.Element {
               "h-1.5 w-1.5 rounded-full",
               offline
                 ? "bg-dash-amber"
+                : reconnecting
+                  ? "bg-dash-amber animate-pulse"
                 : connecting
                   ? "bg-dash-muted animate-pulse"
                   : "bg-dash-accent animate-pulse"
             )}
           />
-          {offline ? "Offline" : connecting ? "Connecting…" : "Live"}
+          {offline ? "Offline" : reconnecting ? "Reconnecting…" : connecting ? "Connecting…" : "Live"}
         </span>
       }
     >
@@ -52,7 +55,7 @@ export function LiveCameraCard({ fullHeight = false }: Props): JSX.Element {
           muted
           className={clsx(
             "h-full w-full object-contain",
-            state === "live" ? "opacity-100" : "opacity-0"
+            state === "live" || reconnecting ? "opacity-100" : "opacity-0"
           )}
         />
         {offline ? (
@@ -77,6 +80,10 @@ export function LiveCameraCard({ fullHeight = false }: Props): JSX.Element {
               <Video className="h-3.5 w-3.5" />
               Retry
             </button>
+          </div>
+        ) : reconnecting ? (
+          <div className="pointer-events-none absolute inset-x-0 top-0 bg-black/50 px-3 py-2 text-center text-[11px] text-dash-amber">
+            {error ?? "Reconnecting WebRTC…"}
           </div>
         ) : connecting ? (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-dash-muted">
