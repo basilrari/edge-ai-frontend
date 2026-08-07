@@ -70,8 +70,12 @@ function SettingsContent(): JSX.Element {
             <dd className="font-mono text-dash-text">{getGatewayUrl()}</dd>
           </div>
           <div className="flex gap-3">
-            <dt className="w-28 shrink-0 text-dash-muted">Camera</dt>
-            <dd className="font-mono text-dash-text">{getGatewayUrl()}/camera/stream</dd>
+            <dt className="w-28 shrink-0 text-dash-muted">Camera ICE</dt>
+            <dd className="font-mono text-dash-text">{getGatewayUrl()}/camera/webrtc/ice</dd>
+          </div>
+          <div className="flex gap-3">
+            <dt className="w-28 shrink-0 text-dash-muted">Camera SDP</dt>
+            <dd className="font-mono text-dash-text">{getGatewayUrl()}/camera/webrtc/offer</dd>
           </div>
         </dl>
       </section>

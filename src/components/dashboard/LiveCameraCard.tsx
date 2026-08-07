@@ -1,19 +1,19 @@
 "use client";
 
-import React, { useState } from "react";
+import React from "react";
 import clsx from "clsx";
 import { Video, VideoOff } from "lucide-react";
 import { DashboardCard } from "./DashboardCard";
-import { cameraStreamUrl } from "../../lib/camera";
+import { useCameraWebRTC } from "../../hooks/useCameraWebRTC";
 
 interface Props {
   fullHeight?: boolean;
 }
 
 export function LiveCameraCard({ fullHeight = false }: Props): JSX.Element {
-  const [streamError, setStreamError] = useState(false);
-  const [retryKey, setRetryKey] = useState(0);
-  const streamUrl = `${cameraStreamUrl()}?v=${retryKey}`;
+  const { videoRef, state, error, retry } = useCameraWebRTC(true);
+  const offline = state === "error";
+  const connecting = state === "connecting" || state === "idle";
 
   return (
     <DashboardCard
@@ -28,10 +28,14 @@ export function LiveCameraCard({ fullHeight = false }: Props): JSX.Element {
           <span
             className={clsx(
               "h-1.5 w-1.5 rounded-full",
-              streamError ? "bg-dash-amber" : "bg-dash-accent animate-pulse"
+              offline
+                ? "bg-dash-amber"
+                : connecting
+                  ? "bg-dash-muted animate-pulse"
+                  : "bg-dash-accent animate-pulse"
             )}
           />
-          {streamError ? "Offline" : "Live"}
+          {offline ? "Offline" : connecting ? "Connecting…" : "Live"}
         </span>
       }
     >
@@ -41,36 +45,45 @@ export function LiveCameraCard({ fullHeight = false }: Props): JSX.Element {
           fullHeight ? "h-full min-h-[320px]" : "h-[360px]"
         )}
       >
-        {!streamError ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={streamUrl}
-            alt="Drone camera feed"
-            className="h-full w-full object-contain"
-            onError={() => setStreamError(true)}
-            onLoad={() => setStreamError(false)}
-          />
-        ) : (
-          <div className="flex flex-col items-center gap-3 px-6 text-center text-dash-muted">
+        <video
+          ref={videoRef}
+          autoPlay
+          playsInline
+          muted
+          className={clsx(
+            "h-full w-full object-contain",
+            state === "live" ? "opacity-100" : "opacity-0"
+          )}
+        />
+        {offline ? (
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 px-6 text-center text-dash-muted">
             <VideoOff className="h-10 w-10 text-dash-muted/60" />
             <p className="text-sm">Camera stream unavailable</p>
             <p className="text-[11px]">
-              Start the model server on the Jetson and ensure the gateway can reach{" "}
-              <span className="font-mono text-dash-text">/video/stream</span>.
+              Start <span className="font-mono text-dash-text">Drone_LLM</span> on the
+              Jetson (
+              <span className="font-mono text-dash-text">./run.sh</span>
+              ) and ensure the gateway can reach WebRTC signaling at{" "}
+              <span className="font-mono text-dash-text">/camera/webrtc/offer</span>.
             </p>
+            {error ? (
+              <p className="max-w-md text-[10px] font-mono text-dash-amber">{error}</p>
+            ) : null}
             <button
               type="button"
               className="inline-flex items-center gap-1.5 rounded-md border border-dash-border px-3 py-1.5 text-xs text-dash-text hover:bg-dash-panel"
-              onClick={() => {
-                setStreamError(false);
-                setRetryKey((k) => k + 1);
-              }}
+              onClick={retry}
             >
               <Video className="h-3.5 w-3.5" />
               Retry
             </button>
           </div>
-        )}
+        ) : connecting ? (
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-dash-muted">
+            <Video className="h-8 w-8 animate-pulse opacity-60" />
+            <p className="text-xs">Connecting WebRTC…</p>
+          </div>
+        ) : null}
       </div>
     </DashboardCard>
   );

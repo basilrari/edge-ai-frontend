@@ -11,7 +11,7 @@ export function CameraLayout(): JSX.Element {
         <div className="shrink-0">
           <h1 className="text-base font-semibold text-dash-text">Camera</h1>
           <p className="text-[11px] text-dash-muted">
-            Live video from the onboard drone camera via the model server.
+            Live video from the onboard camera via WebRTC (signaled through the gateway).
           </p>
         </div>
         <div className="min-h-0 flex-1">
