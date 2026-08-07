@@ -5,6 +5,37 @@ export interface ToolCall {
   params?: Record<string, unknown> | null;
 }
 
+export interface PipelineTiming {
+  gateway_received_ms: number;
+  gateway_response_ms?: number;
+  queue_wait_ms: number;
+  handler_total_ms: number;
+  llm_http_ms: number;
+  llm_parse_ms: number;
+  apply_total_ms?: number;
+  prompt_to_final_ack_ms?: number;
+  client_dispatch_ms?: number;
+}
+
+export interface DroneStepTiming {
+  step_index: number;
+  tool: string;
+  step_id: string;
+  drone_http_ms: number;
+  dispatch_ms?: number;
+  ack_wait_ms?: number;
+  completion_status?: string;
+  ack_result?: string;
+  http_status: number;
+  ok: boolean;
+}
+
+export interface ModelStepTiming {
+  step_index: number;
+  tool: string;
+  placeholder: boolean;
+}
+
 export interface ApiResponse {
   state: string;
   model: string | null;
@@ -24,6 +55,22 @@ export interface ApiResponse {
   tool_params?: Record<string, unknown> | null;
   tools?: ToolCall[] | null;
   llm_tool_json?: string | null;
+  pipeline?: PipelineTiming | null;
+  drone_steps?: DroneStepTiming[];
+  model_steps?: ModelStepTiming[];
+}
+
+export interface InferClientMetrics {
+  client_dispatch_perf_ms: number;
+  client_received_perf_ms: number;
+  client_rtt_perf_ms: number;
+  client_dispatch_epoch_ms?: number;
+}
+
+export interface InferResult {
+  response: ApiResponse;
+  client: InferClientMetrics;
+  request_id: string;
 }
 
 export interface DroneLinkInfo {

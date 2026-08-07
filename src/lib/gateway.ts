@@ -1,4 +1,4 @@
-import type { ApiResponse } from "../components/types";
+import type { ApiResponse, InferClientMetrics, InferResult } from "../components/types";
 
 const ENV_GATEWAY = process.env.NEXT_PUBLIC_GATEWAY_URL?.replace(/\/$/, "");
 
@@ -22,23 +22,72 @@ export function newRequestId(): string {
   return `fe-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
-export function gatewayJsonHeaders(): HeadersInit {
+export function gatewayJsonHeaders(requestId?: string): HeadersInit {
   return {
     "Content-Type": "application/json",
-    "x-request-id": newRequestId(),
+    "x-request-id": requestId ?? newRequestId(),
   };
 }
 
-export async function sendInferPrompt(prompt: string): Promise<ApiResponse> {
+export interface SendInferOptions {
+  waitForAck?: boolean;
+  ackTimeoutMs?: number;
+}
+
+export async function sendInferPrompt(
+  prompt: string,
+  options?: SendInferOptions
+): Promise<InferResult> {
+  const requestId = newRequestId();
+  const clientDispatchEpochMs = Date.now();
+  const dispatchPerf = performance.now();
+  const headers: HeadersInit = {
+    ...gatewayJsonHeaders(requestId),
+    "x-client-dispatch-ms": String(clientDispatchEpochMs),
+  };
+  if (options?.waitForAck) {
+    (headers as Record<string, string>)["x-wait-for-ack"] = "true";
+    if (options.ackTimeoutMs != null) {
+      (headers as Record<string, string>)["x-ack-timeout-ms"] = String(
+        options.ackTimeoutMs
+      );
+    }
+  }
+
   const res = await fetch(`${getGatewayUrl()}/infer`, {
     method: "POST",
-    headers: gatewayJsonHeaders(),
+    headers,
     body: JSON.stringify({ Infer: { prompt } }),
   });
   if (!res.ok) {
     throw new Error(`infer status ${res.status}`);
   }
-  return (await res.json()) as ApiResponse;
+  const response = (await res.json()) as ApiResponse;
+  const receivedPerf = performance.now();
+  const client: InferClientMetrics = {
+    client_dispatch_perf_ms: dispatchPerf,
+    client_received_perf_ms: receivedPerf,
+    client_rtt_perf_ms: receivedPerf - dispatchPerf,
+    client_dispatch_epoch_ms: clientDispatchEpochMs,
+  };
+  return {
+    response,
+    client,
+    request_id: response.request_id ?? requestId,
+  };
+}
+
+export function buildInferTraceExport(result: InferResult): string {
+  return JSON.stringify(
+    {
+      request_id: result.request_id,
+      client: result.client,
+      gateway: result.response,
+      exported_at_ms: Date.now(),
+    },
+    null,
+    2
+  );
 }
 
 export interface MissionUploadResponse {
@@ -132,14 +181,22 @@ async function parseLogClearResponse(
 }
 
 export async function clearDroneLogs(
-  target: LogClearTarget = "all"
+  target: LogClearTarget
 ): Promise<LogClearResponse> {
   const res = await fetch(`${getGatewayUrl()}/drone/logs/clear`, {
     method: "POST",
     headers: gatewayJsonHeaders(),
     body: JSON.stringify({ target }),
   });
-  return parseLogClearResponse(res, "Clear drone logs");
+  return parseLogClearResponse(res, `Clear drone logs (${target})`);
+}
+
+export async function clearAllLogs(): Promise<LogClearResponse> {
+  const res = await fetch(`${getGatewayUrl()}/logs/clear-all`, {
+    method: "POST",
+    headers: gatewayJsonHeaders(),
+  });
+  return parseLogClearResponse(res, "Clear all logs");
 }
 
 export async function clearLlmLogs(): Promise<LogClearResponse> {
@@ -148,36 +205,4 @@ export async function clearLlmLogs(): Promise<LogClearResponse> {
     headers: gatewayJsonHeaders(),
   });
   return parseLogClearResponse(res, "Clear LLM logs");
-}
-
-export async function clearAllLogs(): Promise<{ ok: boolean; drone_ok?: boolean }> {
-  const res = await fetch(`${getGatewayUrl()}/logs/clear-all`, {
-    method: "POST",
-    headers: gatewayJsonHeaders(),
-  });
-  if (res.status === 404) {
-    const [llm, drone] = await Promise.all([
-      clearLlmLogs().catch(() => null),
-      clearDroneLogs("all").catch(() => null),
-    ]);
-    if (!llm && !drone) {
-      throw new Error(
-        "Clear all logs failed (gateway missing /logs/clear-all — run ./sar-stack.sh build && ./sar-stack.sh restart)"
-      );
-    }
-    return { ok: true, drone_ok: drone != null };
-  }
-  const text = await res.text();
-  let data: { ok: boolean; drone_ok?: boolean };
-  try {
-    data = text
-      ? (JSON.parse(text) as { ok: boolean; drone_ok?: boolean })
-      : { ok: false };
-  } catch {
-    throw new Error(`Clear all logs failed (${res.status})`);
-  }
-  if (!res.ok || !data.ok) {
-    throw new Error("Clear all logs failed");
-  }
-  return data;
 }
