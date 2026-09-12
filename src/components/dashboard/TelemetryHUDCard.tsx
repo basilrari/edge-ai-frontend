@@ -8,7 +8,7 @@ import { useTimeDisplayContext } from "./TimeDisplayProvider";
 
 interface Props {
   telemetry: Telemetry;
-  secondsSinceUpdate: number;
+  secondsSinceUpdate: number | null;
   fillHeight?: boolean;
 }
 
@@ -49,7 +49,10 @@ export function TelemetryHUDCard({
   fillHeight = false,
 }: Props): JSX.Element {
   const { formatLogTime } = useTimeDisplayContext();
-  const lastTime = formatLogTime(telemetry.lastUpdateMs);
+  const lastUpdate =
+    telemetry.lastUpdateMs != null && secondsSinceUpdate != null
+      ? `${formatLogTime(telemetry.lastUpdateMs)} (${secondsSinceUpdate}s ago)`
+      : "—";
 
   const speedSub =
     telemetry.speed != null
@@ -105,7 +108,7 @@ export function TelemetryHUDCard({
         <MetricTile
           label="GPS"
           value={fmtInt(telemetry.gpsSatellites)}
-          sub={telemetry.hasFix ? "3D fix" : "No fix yet"}
+          sub={telemetry.hasFix ? telemetry.gpsFix ?? "3D" : "No fix"}
         />
         <MetricTile
           label="Mode"
@@ -130,7 +133,7 @@ export function TelemetryHUDCard({
       <p className="mt-2 text-[9px] uppercase tracking-wide text-dash-muted">
         Last Update{" "}
         <span className="font-mono normal-case text-dash-text">
-          {lastTime} ({secondsSinceUpdate}s ago)
+          {lastUpdate}
         </span>
       </p>
     </DashboardCard>

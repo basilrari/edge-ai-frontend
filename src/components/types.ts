@@ -103,6 +103,9 @@ export interface DroneTelemetry {
   battery_current_a?: number;
   battery_power_w?: number;
   battery_remaining_pct?: number;
+  gps_fix?: string;
+  gps_sats?: number;
+  gps_hdop?: number;
 }
 
 export interface MissionWaypoint {

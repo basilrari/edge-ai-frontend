@@ -338,6 +338,9 @@ export function LiveMapCard({
           .addTo(map);
         bringMarkerDomToFront(droneRef.current);
       }
+    } else if (droneRef.current) {
+      droneRef.current.remove();
+      droneRef.current = null;
     }
 
     if (showOperator && operator) {

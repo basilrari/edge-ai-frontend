@@ -2,9 +2,37 @@ import type { DroneTelemetry } from "../components/types";
 import type { Telemetry } from "../types/drone";
 import { normalizeBatteryVoltageV } from "./format";
 
-/** Fields the dashboard can show; `null` = not available from drone-http / MAVLink yet. */
-export function mapDroneTelemetryToHud(live: DroneTelemetry | null): Telemetry {
-  const ts = live?.ts_ms ?? Date.now();
+const STALE_MS = 3000;
+const FIX_3D_PLUS = new Set([
+  "3D",
+  "DGPS",
+  "RTK_FLT",
+  "RTK_FIX",
+  "STATIC",
+  "PPP",
+]);
+
+export function isFreshTelemetry(
+  live: DroneTelemetry | null,
+  nowMs = Date.now()
+): boolean {
+  if (!live || live.ok === false || live.ts_ms == null) return false;
+  return nowMs - live.ts_ms <= STALE_MS;
+}
+
+export function is3dPlusFix(fix?: string | null): boolean {
+  return !!fix && FIX_3D_PLUS.has(fix);
+}
+
+/** Fields the dashboard can show; `null` = not available from drone-http / MAVLink yet.
+ *  `positionLive` is the only source for lat/lng/`hasFix` (WS-live); HUD numbers may use REST. */
+export function mapDroneTelemetryToHud(
+  live: DroneTelemetry | null,
+  nowMs = Date.now(),
+  positionLive: DroneTelemetry | null = live
+): Telemetry {
+  const freshPos = isFreshTelemetry(positionLive, nowMs);
+  const hasFix = freshPos && is3dPlusFix(positionLive?.gps_fix);
   const mode = live?.mode ?? null;
   const armed = live?.armed ?? null;
   const batteryVoltageV = normalizeBatteryVoltageV(live?.battery_voltage_v);
@@ -24,17 +52,18 @@ export function mapDroneTelemetryToHud(live: DroneTelemetry | null): Telemetry {
     heading: live?.heading_deg ?? null,
     headingCardinal:
       live?.heading_deg != null ? headingToCardinal(live.heading_deg) : null,
-    gpsSatellites: null,
+    gpsSatellites: live?.gps_sats ?? null,
+    gpsFix: live?.gps_fix ?? null,
     flightMode: mode,
     flightModeSub: armed === true ? "Armed" : armed === false ? "Disarmed" : null,
-    lastUpdateMs: ts,
+    lastUpdateMs: positionLive?.ts_ms ?? null,
     roll: live?.roll_deg ?? null,
     pitch: live?.pitch_deg ?? null,
     yaw: live?.yaw_deg ?? null,
     mode,
     armed,
-    lat: live?.lat_deg ?? null,
-    lng: live?.lon_deg ?? null,
+    lat: hasFix ? positionLive?.lat_deg ?? null : null,
+    lng: hasFix ? positionLive?.lon_deg ?? null : null,
     climbMps: live?.climb_m_s ?? null,
     homeLat: live?.home_lat_deg ?? null,
     homeLng: live?.home_lon_deg ?? null,
@@ -44,7 +73,7 @@ export function mapDroneTelemetryToHud(live: DroneTelemetry | null): Telemetry {
     batteryPowerW,
     batteryRemainingPct: live?.battery_remaining_pct ?? null,
     link: live?.link ?? null,
-    hasFix: live?.ok ?? false,
+    hasFix,
   };
 }
 
