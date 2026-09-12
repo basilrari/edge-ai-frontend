@@ -8,7 +8,7 @@ export interface Telemetry {
   gpsSatellites: number | null;
   flightMode?: string | null;
   flightModeSub?: string | null;
-  lastUpdateMs: number;
+  lastUpdateMs: number | null;
   roll?: number | null;
   pitch?: number | null;
   yaw?: number | null;

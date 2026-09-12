@@ -11,11 +11,17 @@ export function useTelemetry(gatewayUrl: string): {
   telemetry: Telemetry;
   live: DroneTelemetry | null;
   connected: boolean;
-  secondsSinceUpdate: number;
+  secondsSinceUpdate: number | null;
 } {
   const { telemetry: wsTelem, connected: wsConnected } =
     useDroneTelemetryWs(gatewayUrl);
   const [restTelem, setRestTelem] = useState<DroneTelemetry | null>(null);
+  const [nowMs, setNowMs] = useState(() => Date.now());
+
+  useEffect(() => {
+    const id = setInterval(() => setNowMs(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -44,19 +50,19 @@ export function useTelemetry(gatewayUrl: string): {
     };
   }, [gatewayUrl]);
 
-  const live = wsTelem ?? restTelem;
-  const connected =
-    isFreshTelemetry(live) && (wsConnected || (restTelem?.ok ?? false));
+  const wsLive = wsConnected ? wsTelem : null;
+  const hudLive = wsLive ?? restTelem;
+  const connected = isFreshTelemetry(wsLive, nowMs);
 
   const telemetry = useMemo(
-    () => mapDroneTelemetryToHud(live),
-    [live]
+    () => mapDroneTelemetryToHud(hudLive, nowMs, wsLive),
+    [hudLive, nowMs, wsLive]
   );
 
   const secondsSinceUpdate = useMemo(() => {
-    if (!telemetry.lastUpdateMs) return 0;
-    return Math.max(0, Math.round((Date.now() - telemetry.lastUpdateMs) / 1000));
-  }, [telemetry.lastUpdateMs, live?.ts_ms]);
+    if (telemetry.lastUpdateMs == null) return null;
+    return Math.max(0, Math.round((nowMs - telemetry.lastUpdateMs) / 1000));
+  }, [telemetry.lastUpdateMs, nowMs]);
 
-  return { telemetry, live, connected, secondsSinceUpdate };
+  return { telemetry, live: hudLive, connected, secondsSinceUpdate };
 }
