@@ -13,7 +13,7 @@ import { useTelemetry } from "../../hooks/useTelemetry";
 import { useMission } from "../../hooks/useMission";
 import { useFlightLogs } from "../../hooks/useFlightLogs";
 import { useLlmLogs } from "../../hooks/useLlmLogs";
-import { getGatewayUrl, sendInferPrompt } from "../../lib/gateway";
+import { getGatewayUrl, inferPromptFailure, sendInferPrompt } from "../../lib/gateway";
 import { MAP_MAX_ZOOM } from "../../lib/mapConstants";
 
 const LiveMapCard = dynamic(
@@ -74,12 +74,17 @@ export function DashboardLayout({
         data.tools?.map((t) => `${t.category}:${t.name}`).join(" → ") ??
         (data.tool_name ? `${data.category}:${data.tool_name}` : null);
 
-      if (data.drone_error) {
-        setPromptError(data.drone_error);
+      const failure = inferPromptFailure(data);
+      if (failure) {
+        setPromptError(failure);
+      } else if (
+        data.category === "none" ||
+        !tools ||
+        tools.startsWith("none:")
+      ) {
+        setPromptSuccess(`Agent responded: ${data.action_taken}`);
       } else {
-        setPromptSuccess(
-          tools ? `Mission sent: ${tools}` : `Agent responded: ${data.action_taken}`
-        );
+        setPromptSuccess(`Mission sent: ${tools}`);
       }
       reloadLlmLogs();
     } catch (e) {

@@ -34,6 +34,28 @@ export interface SendInferOptions {
   ackTimeoutMs?: number;
 }
 
+export function inferPromptFailure(data: ApiResponse): string | null {
+  const action = data.action_taken ?? "";
+  if (data.state === "ERROR") {
+    return data.llm_response || action || "Infer failed";
+  }
+  if (
+    action === "parse_failed" ||
+    action.startsWith("tool_parse_failed") ||
+    /llm_.*failed/.test(action)
+  ) {
+    return action;
+  }
+  if (data.drone_error) return data.drone_error;
+  const failed = (data.drone_steps ?? []).find((s) => !s.ok);
+  if (failed) {
+    return failed.ack_result
+      ? `${failed.tool} ack failed: ${failed.ack_result}`
+      : `${failed.tool} failed`;
+  }
+  return null;
+}
+
 export async function sendInferPrompt(
   prompt: string,
   options?: SendInferOptions
@@ -41,13 +63,14 @@ export async function sendInferPrompt(
   const requestId = newRequestId();
   const clientDispatchEpochMs = Date.now();
   const dispatchPerf = performance.now();
+  const waitForAck = options?.waitForAck ?? true;
   const headers: HeadersInit = {
     ...gatewayJsonHeaders(requestId),
     "x-client-dispatch-ms": String(clientDispatchEpochMs),
   };
-  if (options?.waitForAck) {
+  if (waitForAck) {
     (headers as Record<string, string>)["x-wait-for-ack"] = "true";
-    if (options.ackTimeoutMs != null) {
+    if (options?.ackTimeoutMs != null) {
       (headers as Record<string, string>)["x-ack-timeout-ms"] = String(
         options.ackTimeoutMs
       );
