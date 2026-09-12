@@ -1,4 +1,4 @@
-import type { ApiResponse, InferClientMetrics, InferResult } from "../components/types";
+import type { ApiResponse } from "../components/types";
 
 const ENV_GATEWAY = process.env.NEXT_PUBLIC_GATEWAY_URL?.replace(/\/$/, "");
 
@@ -13,8 +13,6 @@ export function getGatewayUrl(): string {
   return "https://edge-ai.basilrari.com";
 }
 
-export const GATEWAY_URL = ENV_GATEWAY || "https://edge-ai.basilrari.com";
-
 export function newRequestId(): string {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
     return crypto.randomUUID();
@@ -27,11 +25,6 @@ export function gatewayJsonHeaders(requestId?: string): HeadersInit {
     "Content-Type": "application/json",
     "x-request-id": requestId ?? newRequestId(),
   };
-}
-
-export interface SendInferOptions {
-  waitForAck?: boolean;
-  ackTimeoutMs?: number;
 }
 
 export function inferPromptFailure(data: ApiResponse): string | null {
@@ -56,61 +49,21 @@ export function inferPromptFailure(data: ApiResponse): string | null {
   return null;
 }
 
-export async function sendInferPrompt(
-  prompt: string,
-  options?: SendInferOptions
-): Promise<InferResult> {
+export async function sendInferPrompt(prompt: string): Promise<ApiResponse> {
   const requestId = newRequestId();
-  const clientDispatchEpochMs = Date.now();
-  const dispatchPerf = performance.now();
-  const waitForAck = options?.waitForAck ?? true;
-  const headers: HeadersInit = {
-    ...gatewayJsonHeaders(requestId),
-    "x-client-dispatch-ms": String(clientDispatchEpochMs),
-  };
-  if (waitForAck) {
-    (headers as Record<string, string>)["x-wait-for-ack"] = "true";
-    if (options?.ackTimeoutMs != null) {
-      (headers as Record<string, string>)["x-ack-timeout-ms"] = String(
-        options.ackTimeoutMs
-      );
-    }
-  }
-
   const res = await fetch(`${getGatewayUrl()}/infer`, {
     method: "POST",
-    headers,
+    headers: {
+      ...gatewayJsonHeaders(requestId),
+      "x-client-dispatch-ms": String(Date.now()),
+      "x-wait-for-ack": "true",
+    },
     body: JSON.stringify({ Infer: { prompt } }),
   });
   if (!res.ok) {
     throw new Error(`infer status ${res.status}`);
   }
-  const response = (await res.json()) as ApiResponse;
-  const receivedPerf = performance.now();
-  const client: InferClientMetrics = {
-    client_dispatch_perf_ms: dispatchPerf,
-    client_received_perf_ms: receivedPerf,
-    client_rtt_perf_ms: receivedPerf - dispatchPerf,
-    client_dispatch_epoch_ms: clientDispatchEpochMs,
-  };
-  return {
-    response,
-    client,
-    request_id: response.request_id ?? requestId,
-  };
-}
-
-export function buildInferTraceExport(result: InferResult): string {
-  return JSON.stringify(
-    {
-      request_id: result.request_id,
-      client: result.client,
-      gateway: result.response,
-      exported_at_ms: Date.now(),
-    },
-    null,
-    2
-  );
+  return (await res.json()) as ApiResponse;
 }
 
 export interface MissionUploadResponse {

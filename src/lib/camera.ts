@@ -12,12 +12,6 @@ export function cameraWebRtcIceUrl(): string {
   return `${base}/camera/webrtc/ice`;
 }
 
-/** @deprecated MJPEG fallback; live view uses WebRTC. */
-export function cameraStreamUrl(): string {
-  const base = getGatewayUrl().replace(/\/$/, "");
-  return `${base}/camera/stream`;
-}
-
 export const DEFAULT_WEBRTC_ICE_SERVERS: RTCIceServer[] = [
   { urls: "stun:stun.l.google.com:19302" },
 ];

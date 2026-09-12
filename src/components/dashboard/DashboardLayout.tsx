@@ -68,8 +68,7 @@ export function DashboardLayout({
     setPromptError(null);
     setPromptSuccess(null);
     try {
-      const inferResult = await sendInferPrompt(prompt);
-      const data = inferResult.response;
+      const data = await sendInferPrompt(prompt);
       const tools =
         data.tools?.map((t) => `${t.category}:${t.name}`).join(" → ") ??
         (data.tool_name ? `${data.category}:${data.tool_name}` : null);

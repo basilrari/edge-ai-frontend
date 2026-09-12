@@ -1,6 +1,5 @@
 export interface Telemetry {
   altitude: number | null;
-  altitudeAmsl?: number | null;
   speed: number | null;
   airspeed?: number | null;
   heading: number | null;
@@ -12,7 +11,6 @@ export interface Telemetry {
   roll?: number | null;
   pitch?: number | null;
   yaw?: number | null;
-  mode?: string | null;
   armed?: boolean | null;
   lat?: number | null;
   lng?: number | null;

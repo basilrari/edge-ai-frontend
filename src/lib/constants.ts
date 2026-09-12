@@ -8,5 +8,4 @@ export const BRAND_NAME = "SAR CONTROL";
 export const SIDEBAR_DRONE = {
   name: "DRONE-01",
   model: "ArduPilot vehicle",
-  firmware: "via MAVLink",
 };
