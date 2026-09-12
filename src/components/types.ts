@@ -60,19 +60,6 @@ export interface ApiResponse {
   model_steps?: ModelStepTiming[];
 }
 
-export interface InferClientMetrics {
-  client_dispatch_perf_ms: number;
-  client_received_perf_ms: number;
-  client_rtt_perf_ms: number;
-  client_dispatch_epoch_ms?: number;
-}
-
-export interface InferResult {
-  response: ApiResponse;
-  client: InferClientMetrics;
-  request_id: string;
-}
-
 export interface DroneLinkInfo {
   kind: string;
   display: string;

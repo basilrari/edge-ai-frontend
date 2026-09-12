@@ -112,7 +112,7 @@ export function TelemetryHUDCard({
         />
         <MetricTile
           label="Mode"
-          value={telemetry.flightMode ?? telemetry.mode ?? "—"}
+          value={telemetry.flightMode ?? "—"}
           sub={telemetry.flightModeSub ?? undefined}
         />
       </div>

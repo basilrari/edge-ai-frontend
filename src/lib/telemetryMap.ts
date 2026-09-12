@@ -46,7 +46,6 @@ export function mapDroneTelemetryToHud(
 
   return {
     altitude: live?.alt_rel_m ?? null,
-    altitudeAmsl: live?.alt_amsl_m ?? null,
     speed: live?.groundspeed_m_s ?? null,
     airspeed: live?.airspeed_m_s ?? null,
     heading: live?.heading_deg ?? null,
@@ -60,7 +59,6 @@ export function mapDroneTelemetryToHud(
     roll: live?.roll_deg ?? null,
     pitch: live?.pitch_deg ?? null,
     yaw: live?.yaw_deg ?? null,
-    mode,
     armed,
     lat: hasFix ? positionLive?.lat_deg ?? null : null,
     lng: hasFix ? positionLive?.lon_deg ?? null : null,
