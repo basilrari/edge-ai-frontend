@@ -105,7 +105,7 @@ export function TelemetryHUDCard({
         <MetricTile
           label="GPS"
           value={fmtInt(telemetry.gpsSatellites)}
-          sub={telemetry.hasFix ? "3D fix" : "No fix yet"}
+          sub={telemetry.hasFix ? telemetry.gpsFix ?? "3D" : "No fix"}
         />
         <MetricTile
           label="Mode"

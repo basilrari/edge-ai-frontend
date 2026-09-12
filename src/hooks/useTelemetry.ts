@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import type { DroneTelemetry } from "../components/types";
-import { mapDroneTelemetryToHud } from "../lib/telemetryMap";
+import { mapDroneTelemetryToHud, isFreshTelemetry } from "../lib/telemetryMap";
 import type { Telemetry } from "../types/drone";
 import { newRequestId } from "../lib/gateway";
 import { useDroneTelemetryWs } from "./useDroneTelemetryWs";
@@ -25,11 +25,14 @@ export function useTelemetry(gatewayUrl: string): {
         const res = await fetch(`${gatewayUrl}/drone/telemetry`, {
           headers: { "x-request-id": newRequestId() },
         });
-        if (!res.ok) return;
+        if (!res.ok) {
+          if (active) setRestTelem(null);
+          return;
+        }
         const data = (await res.json()) as DroneTelemetry;
         if (active) setRestTelem(data);
       } catch {
-        /* WS is primary */
+        if (active) setRestTelem(null);
       }
     };
 
@@ -42,7 +45,8 @@ export function useTelemetry(gatewayUrl: string): {
   }, [gatewayUrl]);
 
   const live = wsTelem ?? restTelem;
-  const connected = wsConnected || (restTelem?.ok ?? false);
+  const connected =
+    isFreshTelemetry(live) && (wsConnected || (restTelem?.ok ?? false));
 
   const telemetry = useMemo(
     () => mapDroneTelemetryToHud(live),

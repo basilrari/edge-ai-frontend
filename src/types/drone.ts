@@ -26,6 +26,7 @@ export interface Telemetry {
   batteryRemainingPct?: number | null;
   link?: import("../components/types").DroneLinkInfo | null;
   hasFix?: boolean;
+  gpsFix?: string | null;
 }
 
 export interface MissionLeg {

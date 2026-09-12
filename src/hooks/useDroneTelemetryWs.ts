@@ -44,6 +44,7 @@ export function useDroneTelemetryWs(gatewayUrl: string): {
       socket.onclose = () => {
         if (active) {
           setConnected(false);
+          setTelemetry(null);
           retryTimer = setTimeout(connect, 2000);
         }
       };
