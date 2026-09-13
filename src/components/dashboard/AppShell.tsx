@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import { DashboardNavbar } from "./DashboardNavbar";
 import { DashboardSidebar } from "./DashboardSidebar";
 import { TimeDisplayProvider } from "./TimeDisplayProvider";
-import { useTelemetry } from "../../hooks/useTelemetry";
+import { TelemetryProvider, useTelemetry } from "../../hooks/useTelemetry";
 import { getGatewayUrl } from "../../lib/gateway";
 import { fmtLinkKind } from "../../lib/format";
 
@@ -22,9 +22,27 @@ export function AppShell({
   pageTitle = "Mission Control",
   lockViewport = false,
 }: Props): JSX.Element {
-  const pathname = usePathname();
   const gatewayUrl = getGatewayUrl();
-  const { live, connected, telemetry } = useTelemetry(gatewayUrl);
+
+  return (
+    <TelemetryProvider gatewayUrl={gatewayUrl}>
+      <AppShellFrame
+        pageTitle={pageTitle}
+        lockViewport={lockViewport}
+      >
+        {children}
+      </AppShellFrame>
+    </TelemetryProvider>
+  );
+}
+
+function AppShellFrame({
+  children,
+  pageTitle,
+  lockViewport,
+}: Props): JSX.Element {
+  const pathname = usePathname();
+  const { live, connected, telemetry } = useTelemetry();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   return (

@@ -34,7 +34,7 @@ export function DashboardLayout({
   maptilerApiKey?: string;
 }): JSX.Element {
   const gatewayUrl = getGatewayUrl();
-  const { telemetry, secondsSinceUpdate } = useTelemetry(gatewayUrl);
+  const { telemetry, secondsSinceUpdate } = useTelemetry();
   const {
     waypoints,
     mission,

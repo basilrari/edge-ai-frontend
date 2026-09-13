@@ -1,7 +1,5 @@
 import type { DroneTelemetry } from "../components/types";
 import type { Telemetry } from "../types/drone";
-import { normalizeBatteryVoltageV } from "./format";
-
 const STALE_MS = 3000;
 const FIX_3D_PLUS = new Set([
   "3D",
@@ -24,8 +22,7 @@ export function is3dPlusFix(fix?: string | null): boolean {
   return !!fix && FIX_3D_PLUS.has(fix);
 }
 
-/** Fields the dashboard can show; `null` = not available from drone-http / MAVLink yet.
- *  `positionLive` is the only source for lat/lng/`hasFix` (WS-live); HUD numbers may use REST. */
+/** Fields the dashboard can show; `null` = not available from drone-http / MAVLink yet. */
 export function mapDroneTelemetryToHud(
   live: DroneTelemetry | null,
   nowMs = Date.now(),
@@ -35,7 +32,11 @@ export function mapDroneTelemetryToHud(
   const hasFix = freshPos && is3dPlusFix(positionLive?.gps_fix);
   const mode = live?.mode ?? null;
   const armed = live?.armed ?? null;
-  const batteryVoltageV = normalizeBatteryVoltageV(live?.battery_voltage_v);
+  const rawV = live?.battery_voltage_v;
+  const batteryVoltageV =
+    rawV != null && Number.isFinite(rawV) && rawV > 0 && rawV <= 60
+      ? rawV
+      : null;
   const batteryCurrentA = live?.battery_current_a ?? null;
   const batteryPowerW =
     batteryVoltageV != null &&

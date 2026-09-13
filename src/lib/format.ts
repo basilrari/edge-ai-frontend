@@ -21,38 +21,27 @@ export function fmtLinkKind(kind: string | null | undefined): string | null {
   return kind.replace(/_/g, " ");
 }
 
-/** Map overlay: pack V / A / W (+ optional %) from MAVLink SYS_STATUS. */
-export function normalizeBatteryVoltageV(
-  voltageV: number | null | undefined
-): number | null {
-  if (voltageV == null || !Number.isFinite(voltageV)) return null;
-  let v = voltageV;
-  // Raw millivolts leaked into the volts field (e.g. 12600).
-  if (v >= 1000) v /= 1000;
-  // Legacy backend sent centivolts (12600 mV / 100 = 126).
-  if (v > 60) v /= 10;
-  if (v <= 0 || v > 60) return null;
-  return v;
-}
-
-/** Map overlay: pack V / A / W (+ optional %) from MAVLink SYS_STATUS. */
+/** Map overlay: pack V / A / W (+ optional %) from drone-http (volts as sent by MAVLink). */
 export function fmtBatteryPowerBadge(
   voltageV: number | null | undefined,
   currentA: number | null | undefined,
   powerW: number | null | undefined,
   remainingPct: number | null | undefined
 ): { label: string; live: boolean } {
-  const normalizedV = normalizeBatteryVoltageV(voltageV);
+  const v =
+    voltageV != null && Number.isFinite(voltageV) && voltageV > 0 && voltageV <= 60
+      ? voltageV
+      : null;
   const parts: string[] = [];
-  if (normalizedV != null) {
-    parts.push(`${normalizedV.toFixed(1)} V`);
+  if (v != null) {
+    parts.push(`${v.toFixed(1)} V`);
   }
   if (currentA != null && Number.isFinite(currentA)) {
     parts.push(`${currentA.toFixed(1)} A`);
   }
   const computedPower =
-    normalizedV != null && currentA != null && Number.isFinite(currentA)
-      ? normalizedV * currentA
+    v != null && currentA != null && Number.isFinite(currentA)
+      ? v * currentA
       : powerW;
   if (computedPower != null && Number.isFinite(computedPower)) {
     parts.push(`${Math.round(computedPower)} W`);

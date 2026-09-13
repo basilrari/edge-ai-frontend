@@ -37,7 +37,7 @@ export function MissionLayout({
   maptilerApiKey?: string;
 }): JSX.Element {
   const gatewayUrl = getGatewayUrl();
-  const { telemetry } = useTelemetry(gatewayUrl);
+  const { telemetry } = useTelemetry();
   const {
     mission,
     loading: missionLoading,

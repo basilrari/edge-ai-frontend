@@ -44,10 +44,10 @@ frontend/src/
 
 ## Data flow
 
-1. **Telemetry**: `useDroneTelemetryWs` → `WS /drone/ws`; `useTelemetry` also polls `GET /drone/telemetry` every 5s. Mapped via `telemetryMap.ts`. Battery V/A/W shown in **navbar**.
+1. **Telemetry**: `TelemetryProvider` in `AppShell` → one `useDroneTelemetryWs` (`WS /drone/ws`) per page; child layouts call `useTelemetry()`. Mapped via `telemetryMap.ts`. Battery V/A/W shown in **navbar**.
 2. **Mission**: `useMission` polls `GET /drone/mission` every 5s.
 3. **Flight logs** (dedicated page): `useLogsStream` → `WS /drone/logs/ws` with HTTP fallback; `useLlmLogs` → `GET /logs/llm`.
-4. **Prompt**: `MissionPromptCard` → `POST /infer` with `{"Infer": {"prompt": "..."}}`. Gateway **auto-applies** drone tools (no separate approval UI).
+4. **Prompt**: `MissionPromptCard` → `POST /infer` with `{"Infer": {"prompt": "..."}}`. Gateway **auto-applies** today (`pending_approval: false`). When the API returns **`pending_approval: true`**, show approval UI before **ApplyTool** (reserved for later).
 
 ---
 

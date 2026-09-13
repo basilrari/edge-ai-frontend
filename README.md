@@ -60,8 +60,7 @@ frontend/src/
 
 | Endpoint | Purpose |
 |----------|---------|
-| `WS /drone/ws` | Live telemetry stream |
-| `GET /drone/telemetry` | Telemetry REST fallback |
+| `WS /drone/ws` | Live telemetry stream (single shared WS via `TelemetryProvider`) |
 | `GET /drone/mission` | Uploaded mission waypoints |
 | `GET /drone/logs` | Drone event log |
 | `POST /infer` | Send natural-language mission prompt |
