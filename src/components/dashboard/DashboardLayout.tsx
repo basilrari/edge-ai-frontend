@@ -34,6 +34,18 @@ export function DashboardLayout({
 }: {
   maptilerApiKey?: string;
 }): JSX.Element {
+  return (
+    <AppShell pageTitle="Mission Control" lockViewport>
+      <DashboardContent maptilerApiKey={maptilerApiKey} />
+    </AppShell>
+  );
+}
+
+function DashboardContent({
+  maptilerApiKey,
+}: {
+  maptilerApiKey?: string;
+}): JSX.Element {
   const gatewayUrl = useGatewayUrl();
   const { telemetry, secondsSinceUpdate } = useTelemetry();
   const {
@@ -95,65 +107,63 @@ export function DashboardLayout({
   };
 
   return (
-    <AppShell pageTitle="Mission Control" lockViewport>
-      <div className="flex h-full min-h-0 flex-col gap-2">
-        <div className="grid min-h-0 flex-1 grid-cols-1 gap-2 xl:grid-cols-12">
-          <div className="flex min-h-0 flex-col gap-2 xl:col-span-3">
-            <MissionPromptCard
-              onSend={handleSendPrompt}
-              loading={promptLoading}
-              error={promptError}
-              successMessage={promptSuccess}
-              fillHeight
-            />
-          </div>
-          <div className="flex min-h-0 flex-col xl:col-span-3">
-            <LlmOutputCard
-              entries={llmEntries}
-              loading={llmLoading}
-              error={llmError}
-              fillHeight
-            />
-          </div>
-          <div className="flex min-h-0 flex-col xl:col-span-6">
-            <LiveMapCard
-              activeWaypoints={waypoints}
-              telemetry={telemetry}
-              fillHeight
-              mapMaxZoom={MAP_MAX_ZOOM}
-              maptilerApiKey={maptilerApiKey}
-              initialZoom={18}
-            />
-          </div>
+    <div className="flex h-full min-h-0 flex-col gap-2">
+      <div className="grid min-h-0 flex-1 grid-cols-1 gap-2 xl:grid-cols-12">
+        <div className="flex min-h-0 flex-col gap-2 xl:col-span-3">
+          <MissionPromptCard
+            onSend={handleSendPrompt}
+            loading={promptLoading}
+            error={promptError}
+            successMessage={promptSuccess}
+            fillHeight
+          />
         </div>
-
-        <div className="grid min-h-0 flex-1 grid-cols-1 gap-2 xl:grid-cols-12">
-          <div className="flex min-h-0 flex-col xl:col-span-3">
-            <TelemetryHUDCard
-              telemetry={telemetry}
-              secondsSinceUpdate={secondsSinceUpdate}
-              fillHeight
-            />
-          </div>
-          <div className="flex min-h-0 flex-col xl:col-span-6">
-            <MissionOverviewCard
-              legs={missionLegs}
-              stats={missionStats}
-              loading={missionLoading}
-              error={missionError}
-              fillHeight
-            />
-          </div>
-          <div className="flex min-h-0 flex-col xl:col-span-3">
-            <FlightLogsCard
-              entries={flightLogs}
-              loading={logsLoading}
-              error={logsError}
-              fillHeight
-            />
-          </div>
+        <div className="flex min-h-0 flex-col xl:col-span-3">
+          <LlmOutputCard
+            entries={llmEntries}
+            loading={llmLoading}
+            error={llmError}
+            fillHeight
+          />
+        </div>
+        <div className="flex min-h-0 flex-col xl:col-span-6">
+          <LiveMapCard
+            activeWaypoints={waypoints}
+            telemetry={telemetry}
+            fillHeight
+            mapMaxZoom={MAP_MAX_ZOOM}
+            maptilerApiKey={maptilerApiKey}
+            initialZoom={18}
+          />
         </div>
       </div>
-    </AppShell>
+
+      <div className="grid min-h-0 flex-1 grid-cols-1 gap-2 xl:grid-cols-12">
+        <div className="flex min-h-0 flex-col xl:col-span-3">
+          <TelemetryHUDCard
+            telemetry={telemetry}
+            secondsSinceUpdate={secondsSinceUpdate}
+            fillHeight
+          />
+        </div>
+        <div className="flex min-h-0 flex-col xl:col-span-6">
+          <MissionOverviewCard
+            legs={missionLegs}
+            stats={missionStats}
+            loading={missionLoading}
+            error={missionError}
+            fillHeight
+          />
+        </div>
+        <div className="flex min-h-0 flex-col xl:col-span-3">
+          <FlightLogsCard
+            entries={flightLogs}
+            loading={logsLoading}
+            error={logsError}
+            fillHeight
+          />
+        </div>
+      </div>
+    </div>
   );
 }

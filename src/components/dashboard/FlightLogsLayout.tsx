@@ -606,6 +606,14 @@ function PixhawkLogsPanel({
 }
 
 export function FlightLogsLayout(): JSX.Element {
+  return (
+    <AppShell pageTitle="Flight Logs" lockViewport>
+      <FlightLogsContent />
+    </AppShell>
+  );
+}
+
+function FlightLogsContent(): JSX.Element {
   const gatewayUrl = useGatewayUrl();
   const { flightEntries, mavlinkEntries, connected, error, reload: reloadDroneLogs, resetEntries: resetDroneLogs } =
     useLogsStream(gatewayUrl ?? "");
@@ -626,7 +634,6 @@ export function FlightLogsLayout(): JSX.Element {
   };
 
   return (
-    <AppShell pageTitle="Flight Logs" lockViewport>
       <div className="flex h-full min-h-0 flex-col gap-2">
         <div className="flex shrink-0 flex-wrap items-center justify-between gap-3">
           <div className="flex min-w-0 flex-wrap items-baseline gap-3">
@@ -670,6 +677,5 @@ export function FlightLogsLayout(): JSX.Element {
           />
         </div>
       </div>
-    </AppShell>
   );
 }

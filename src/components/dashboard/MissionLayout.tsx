@@ -36,6 +36,18 @@ export function MissionLayout({
 }: {
   maptilerApiKey?: string;
 }): JSX.Element {
+  return (
+    <AppShell pageTitle="Mission" lockViewport>
+      <MissionContent maptilerApiKey={maptilerApiKey} />
+    </AppShell>
+  );
+}
+
+function MissionContent({
+  maptilerApiKey,
+}: {
+  maptilerApiKey?: string;
+}): JSX.Element {
   const gatewayUrl = useGatewayUrl();
   const { telemetry } = useTelemetry();
   const {
@@ -83,44 +95,42 @@ export function MissionLayout({
   }, [reloadMission]);
 
   return (
-    <AppShell pageTitle="Mission" lockViewport>
-      <div className="grid h-full min-h-0 grid-cols-1 gap-2 xl:grid-cols-5">
-        <div className="relative z-0 flex min-h-0 flex-col xl:col-span-3">
-          <LiveMapCard
-            activeWaypoints={[]}
-            plannerWaypoints={plannerDraft.waypoints}
-            dronePlanMarkers={droneMapMarkers}
-            dronePlanPath={droneMapPath}
-            showDronePlan={showDronePlan}
-            showPlannerPlan={showNewPlan}
-            onShowDronePlanChange={setShowDronePlan}
-            onShowPlannerPlanChange={setShowNewPlan}
-            telemetry={telemetry}
-            operator={operatorPosition}
-            plannerMode
-            followDrone={followDrone}
-            onFollowChange={setFollowDrone}
-            onMapClick={handleMapClick}
-            fillHeight
-            mapMaxZoom={MAP_MAX_ZOOM}
-            maptilerApiKey={maptilerApiKey}
-            initialZoom={18}
-          />
-        </div>
-        <div className="flex min-h-0 flex-col xl:col-span-2">
-          <MissionPlannerCard
-            draft={plannerDraft}
-            onDraftChange={setPlannerDraft}
-            onMissionUploaded={handleMissionUploaded}
-            onDroneMissionCleared={handleDroneMissionCleared}
-            onDroneMission={mission}
-            droneMissionLoading={missionLoading}
-            droneMissionError={missionError}
-            groundspeedMps={telemetry.speed}
-            fillHeight
-          />
-        </div>
+    <div className="grid h-full min-h-0 grid-cols-1 gap-2 xl:grid-cols-5">
+      <div className="relative z-0 flex min-h-0 flex-col xl:col-span-3">
+        <LiveMapCard
+          activeWaypoints={[]}
+          plannerWaypoints={plannerDraft.waypoints}
+          dronePlanMarkers={droneMapMarkers}
+          dronePlanPath={droneMapPath}
+          showDronePlan={showDronePlan}
+          showPlannerPlan={showNewPlan}
+          onShowDronePlanChange={setShowDronePlan}
+          onShowPlannerPlanChange={setShowNewPlan}
+          telemetry={telemetry}
+          operator={operatorPosition}
+          plannerMode
+          followDrone={followDrone}
+          onFollowChange={setFollowDrone}
+          onMapClick={handleMapClick}
+          fillHeight
+          mapMaxZoom={MAP_MAX_ZOOM}
+          maptilerApiKey={maptilerApiKey}
+          initialZoom={18}
+        />
       </div>
-    </AppShell>
+      <div className="flex min-h-0 flex-col xl:col-span-2">
+        <MissionPlannerCard
+          draft={plannerDraft}
+          onDraftChange={setPlannerDraft}
+          onMissionUploaded={handleMissionUploaded}
+          onDroneMissionCleared={handleDroneMissionCleared}
+          onDroneMission={mission}
+          droneMissionLoading={missionLoading}
+          droneMissionError={missionError}
+          groundspeedMps={telemetry.speed}
+          fillHeight
+        />
+      </div>
+    </div>
   );
 }
