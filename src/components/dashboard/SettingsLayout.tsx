@@ -3,7 +3,7 @@
 import React from "react";
 import { AppShell } from "./AppShell";
 import { useTimeDisplayContext } from "./TimeDisplayProvider";
-import { getGatewayUrl } from "../../lib/gateway";
+import { useGatewayUrl } from "../../hooks/GatewayConfigProvider";
 import {
   COMMON_TIMEZONES,
   timezoneModeLabel,
@@ -42,6 +42,7 @@ function ModeOption({
 }
 
 function SettingsContent(): JSX.Element {
+  const gatewayUrl = useGatewayUrl();
   const {
     settings,
     setSettings,
@@ -67,15 +68,19 @@ function SettingsContent(): JSX.Element {
         <dl className="space-y-2 text-sm">
           <div className="flex gap-3">
             <dt className="w-28 shrink-0 text-dash-muted">Gateway</dt>
-            <dd className="font-mono text-dash-text">{getGatewayUrl()}</dd>
+            <dd className="font-mono text-dash-text">{gatewayUrl ?? "—"}</dd>
           </div>
           <div className="flex gap-3">
             <dt className="w-28 shrink-0 text-dash-muted">Camera ICE</dt>
-            <dd className="font-mono text-dash-text">{getGatewayUrl()}/camera/webrtc/ice</dd>
+            <dd className="font-mono text-dash-text">
+              {gatewayUrl ? `${gatewayUrl}/camera/webrtc/ice` : "—"}
+            </dd>
           </div>
           <div className="flex gap-3">
             <dt className="w-28 shrink-0 text-dash-muted">Camera SDP</dt>
-            <dd className="font-mono text-dash-text">{getGatewayUrl()}/camera/webrtc/offer</dd>
+            <dd className="font-mono text-dash-text">
+              {gatewayUrl ? `${gatewayUrl}/camera/webrtc/offer` : "—"}
+            </dd>
           </div>
         </dl>
       </section>

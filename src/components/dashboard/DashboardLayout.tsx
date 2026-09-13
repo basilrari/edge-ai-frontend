@@ -13,7 +13,8 @@ import { useTelemetry } from "../../hooks/useTelemetry";
 import { useMission } from "../../hooks/useMission";
 import { useFlightLogs } from "../../hooks/useFlightLogs";
 import { useLlmLogs } from "../../hooks/useLlmLogs";
-import { getGatewayUrl, inferPromptFailure, sendInferPrompt } from "../../lib/gateway";
+import { useGatewayUrl } from "../../hooks/GatewayConfigProvider";
+import { inferPromptFailure, sendInferPrompt } from "../../lib/gateway";
 import { MAP_MAX_ZOOM } from "../../lib/mapConstants";
 
 const LiveMapCard = dynamic(
@@ -33,25 +34,25 @@ export function DashboardLayout({
 }: {
   maptilerApiKey?: string;
 }): JSX.Element {
-  const gatewayUrl = getGatewayUrl();
+  const gatewayUrl = useGatewayUrl();
   const { telemetry, secondsSinceUpdate } = useTelemetry();
   const {
     waypoints,
     mission,
     loading: missionLoading,
     error: missionError,
-  } = useMission(gatewayUrl);
+  } = useMission(gatewayUrl ?? "");
   const {
     entries: flightLogs,
     loading: logsLoading,
     error: logsError,
-  } = useFlightLogs(gatewayUrl);
+  } = useFlightLogs(gatewayUrl ?? "");
   const {
     entries: llmEntries,
     loading: llmLoading,
     error: llmError,
     reload: reloadLlmLogs,
-  } = useLlmLogs(gatewayUrl);
+  } = useLlmLogs(gatewayUrl ?? "");
 
   const [promptLoading, setPromptLoading] = useState(false);
   const [promptError, setPromptError] = useState<string | null>(null);

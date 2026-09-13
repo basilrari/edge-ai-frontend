@@ -7,7 +7,7 @@ import { MissionPlannerCard } from "./MissionPlannerCard";
 import { useTelemetry } from "../../hooks/useTelemetry";
 import { useMission } from "../../hooks/useMission";
 import { useOperatorLocation } from "../../hooks/useOperatorLocation";
-import { getGatewayUrl } from "../../lib/gateway";
+import { useGatewayUrl } from "../../hooks/GatewayConfigProvider";
 import { MAP_MAX_ZOOM } from "../../lib/mapConstants";
 import {
   missionToDroneMapMarkers,
@@ -36,14 +36,14 @@ export function MissionLayout({
 }: {
   maptilerApiKey?: string;
 }): JSX.Element {
-  const gatewayUrl = getGatewayUrl();
+  const gatewayUrl = useGatewayUrl();
   const { telemetry } = useTelemetry();
   const {
     mission,
     loading: missionLoading,
     error: missionError,
     reload: reloadMission,
-  } = useMission(gatewayUrl);
+  } = useMission(gatewayUrl ?? "");
   const { position: operatorPosition } = useOperatorLocation();
 
   const [plannerDraft, setPlannerDraft] =

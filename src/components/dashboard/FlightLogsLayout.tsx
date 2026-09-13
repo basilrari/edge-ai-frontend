@@ -7,8 +7,8 @@ import { AppShell } from "./AppShell";
 import { useTimeDisplayContext } from "./TimeDisplayProvider";
 import { useLogsStream } from "../../hooks/useLogsStream";
 import { useLlmLogs } from "../../hooks/useLlmLogs";
+import { useGatewayUrl } from "../../hooks/GatewayConfigProvider";
 import {
-  getGatewayUrl,
   clearAllLogs,
   clearDroneLogs,
   clearLlmLogs,
@@ -606,16 +606,16 @@ function PixhawkLogsPanel({
 }
 
 export function FlightLogsLayout(): JSX.Element {
-  const gatewayUrl = getGatewayUrl();
+  const gatewayUrl = useGatewayUrl();
   const { flightEntries, mavlinkEntries, connected, error, reload: reloadDroneLogs, resetEntries: resetDroneLogs } =
-    useLogsStream(gatewayUrl);
+    useLogsStream(gatewayUrl ?? "");
   const {
     entries: llmEntries,
     loading: llmLoading,
     error: llmError,
     reload: reloadLlmLogs,
     resetEntries: resetLlmLogs,
-  } = useLlmLogs(gatewayUrl);
+  } = useLlmLogs(gatewayUrl ?? "");
 
   const handleClearAll = async () => {
     await clearAllLogs();

@@ -6,8 +6,11 @@ import { usePathname } from "next/navigation";
 import { DashboardNavbar } from "./DashboardNavbar";
 import { DashboardSidebar } from "./DashboardSidebar";
 import { TimeDisplayProvider } from "./TimeDisplayProvider";
+import {
+  GatewayConfigProvider,
+  useGatewayConfig,
+} from "../../hooks/GatewayConfigProvider";
 import { TelemetryProvider, useTelemetry } from "../../hooks/useTelemetry";
-import { getGatewayUrl } from "../../lib/gateway";
 import { fmtLinkKind } from "../../lib/format";
 
 interface Props {
@@ -22,14 +25,47 @@ export function AppShell({
   pageTitle = "Mission Control",
   lockViewport = false,
 }: Props): JSX.Element {
-  const gatewayUrl = getGatewayUrl();
+  return (
+    <GatewayConfigProvider>
+      <AppShellGatewayGate pageTitle={pageTitle} lockViewport={lockViewport}>
+        {children}
+      </AppShellGatewayGate>
+    </GatewayConfigProvider>
+  );
+}
+
+function AppShellGatewayGate({
+  children,
+  pageTitle,
+  lockViewport,
+}: Props): JSX.Element {
+  const { gatewayUrl, gatewayError, ready } = useGatewayConfig();
+
+  if (!ready) {
+    return (
+      <div className="dashboard-app flex h-screen items-center justify-center bg-dash-bg text-dash-muted">
+        Loading Mission Control…
+      </div>
+    );
+  }
+
+  if (gatewayError || !gatewayUrl) {
+    return (
+      <div className="dashboard-app flex h-screen items-center justify-center bg-dash-bg p-6 text-center">
+        <div className="max-w-lg rounded-lg border border-red-500/40 bg-red-950/30 p-6 text-red-200">
+          <p className="text-lg font-semibold">Gateway URL not configured</p>
+          <p className="mt-2 text-sm text-red-100/90">
+            {gatewayError ??
+              "Set NEXT_PUBLIC_GATEWAY_URL in .env.local or Vercel project env."}
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <TelemetryProvider gatewayUrl={gatewayUrl}>
-      <AppShellFrame
-        pageTitle={pageTitle}
-        lockViewport={lockViewport}
-      >
+      <AppShellFrame pageTitle={pageTitle} lockViewport={lockViewport}>
         {children}
       </AppShellFrame>
     </TelemetryProvider>
