@@ -61,8 +61,9 @@ frontend/src/
 
 ## Conventions
 
-1. **Gateway URL**: `process.env.NEXT_PUBLIC_GATEWAY_URL ?? "http://localhost:3000"` in `lib/gateway.ts`.
-2. **Types**: Keep `components/types.ts` aligned with gateway and drone-http JSON.
-3. **New UI**: Add under `components/dashboard/`; wire in the relevant layout.
+1. **Gateway URL**: `NEXT_PUBLIC_GATEWAY_URL` in `lib/gateway.ts` (falls back to localhost or production URL).
+2. **Gateway auth**: protected routes need `NEXT_PUBLIC_MCP_API_KEY` (Bearer + `X-API-Key` via `gatewayJsonHeaders()`). Must match gateway `MCP_API_KEY`. Unprotected reads (`GET /drone/telemetry`, WS) do not require it.
+3. **Types**: Keep `components/types.ts` aligned with gateway and drone-http JSON.
+4. **New UI**: Add under `components/dashboard/`; wire in the relevant layout.
 
 See **gateway/AGENTS.md** for API shapes.

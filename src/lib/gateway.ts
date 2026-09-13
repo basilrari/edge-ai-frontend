@@ -1,6 +1,15 @@
 import type { ApiResponse } from "../components/types";
 
 const ENV_GATEWAY = process.env.NEXT_PUBLIC_GATEWAY_URL?.replace(/\/$/, "");
+const ENV_MCP_API_KEY = process.env.NEXT_PUBLIC_MCP_API_KEY?.trim();
+
+function gatewayAuthHeaders(): HeadersInit {
+  if (!ENV_MCP_API_KEY) return {};
+  return {
+    Authorization: `Bearer ${ENV_MCP_API_KEY}`,
+    "X-API-Key": ENV_MCP_API_KEY,
+  };
+}
 
 export function getGatewayUrl(): string {
   if (ENV_GATEWAY) return ENV_GATEWAY;
@@ -22,6 +31,7 @@ export function newRequestId(): string {
 
 export function gatewayJsonHeaders(requestId?: string): HeadersInit {
   return {
+    ...gatewayAuthHeaders(),
     "Content-Type": "application/json",
     "x-request-id": requestId ?? newRequestId(),
   };
