@@ -19,7 +19,9 @@ export function getGatewayUrl(): string {
       return "http://127.0.0.1:3000";
     }
   }
-  return "https://edge-ai.basilrari.com";
+  throw new Error(
+    "NEXT_PUBLIC_GATEWAY_URL is not set. Add it to .env.local or Vercel project env."
+  );
 }
 
 export function newRequestId(): string {
