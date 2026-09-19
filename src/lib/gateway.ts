@@ -39,6 +39,17 @@ export function gatewayJsonHeaders(requestId?: string): HeadersInit {
   };
 }
 
+export function formatApplyNotice(raw: string): string {
+  const inner = raw.match(/error=(.*)$/s)?.[1] ?? raw;
+  if (inner.startsWith("disarm_blocked:")) {
+    return `Disarm rejected: ${inner.slice("disarm_blocked:".length).trim()}`;
+  }
+  if (inner.startsWith("takeoff_incomplete:")) {
+    return `Takeoff not complete: ${inner.slice("takeoff_incomplete:".length).trim()}`;
+  }
+  return raw;
+}
+
 export function inferPromptFailure(data: ApiResponse): string | null {
   const action = data.action_taken ?? "";
   if (data.state === "ERROR") {
@@ -51,7 +62,7 @@ export function inferPromptFailure(data: ApiResponse): string | null {
   ) {
     return action;
   }
-  if (data.drone_error) return data.drone_error;
+  if (data.drone_error) return formatApplyNotice(data.drone_error);
   const failed = (data.drone_steps ?? []).find((s) => !s.ok);
   if (failed) {
     return failed.ack_result

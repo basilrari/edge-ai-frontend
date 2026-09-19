@@ -52,6 +52,7 @@ export interface ApiResponse {
   drone_http_status?: number | null;
   drone_http_ms?: number | null;
   drone_error?: string | null;
+  warnings?: string[];
   tool_params?: Record<string, unknown> | null;
   tools?: ToolCall[] | null;
   llm_tool_json?: string | null;
