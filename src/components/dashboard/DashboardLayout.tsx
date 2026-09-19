@@ -68,6 +68,7 @@ function DashboardContent({
 
   const [promptLoading, setPromptLoading] = useState(false);
   const [promptError, setPromptError] = useState<string | null>(null);
+  const [promptWarning, setPromptWarning] = useState<string | null>(null);
   const [promptSuccess, setPromptSuccess] = useState<string | null>(null);
 
   const missionLegs = useMemo(() => buildMissionLegs(mission), [mission]);
@@ -79,6 +80,7 @@ function DashboardContent({
   const handleSendPrompt = async (prompt: string) => {
     setPromptLoading(true);
     setPromptError(null);
+    setPromptWarning(null);
     setPromptSuccess(null);
     try {
       const data = await sendInferPrompt(prompt);
@@ -98,6 +100,8 @@ function DashboardContent({
       } else {
         setPromptSuccess(`Mission sent: ${tools}`);
       }
+      const warning = (data.warnings ?? []).filter(Boolean).join(" ");
+      if (warning) setPromptWarning(warning);
       reloadLlmLogs();
     } catch (e) {
       setPromptError(e instanceof Error ? e.message : "Failed to send prompt");
@@ -114,6 +118,7 @@ function DashboardContent({
             onSend={handleSendPrompt}
             loading={promptLoading}
             error={promptError}
+            warningMessage={promptWarning}
             successMessage={promptSuccess}
             fillHeight
           />
